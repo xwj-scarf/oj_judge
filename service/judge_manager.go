@@ -37,7 +37,7 @@ func (self *JudgeServer) Init() {
 
 func (self *JudgeServer) Run() {
 	defer self.Stop()
-	self.worker.manager = self
+	self.worker.Manager = self
 	self.container_pool = make(map[string]*ClientInfo)
 
 	for i:=0;i<self.max_docker_num;i++ {
@@ -82,7 +82,7 @@ func (self *JudgeServer) Run() {
 		fmt.Println(v)
 	}
 	self.worker.Run()
-	time.Sleep(10*time.Second)
+	time.Sleep(1000*time.Second)
 }
 
 

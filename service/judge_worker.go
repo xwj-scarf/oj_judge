@@ -3,15 +3,13 @@ package judgeServer
 import (
 	"time"
 	"fmt"
-	"os"
 )
 
 type JudgeWorker struct {
-	manager *JudgeServer
+	Manager *JudgeServer
 }
 
 func (self *JudgeWorker) Run() {
-	//time.Sleep(5*time.Second)
 	go self.GetTask()
 	fmt.Println("run .......")
 
@@ -22,7 +20,7 @@ func (self *JudgeWorker) GetTask() {
 	for {
 		is_idle := 0
 		var idle_container_id  []string
-		for k,v := range self.manager.container_pool{
+		for k,v := range self.Manager.container_pool{
 			if v.is_work == false {
 				is_idle = is_idle + 1
 				idle_container_id = append(idle_container_id,k)
@@ -30,7 +28,7 @@ func (self *JudgeWorker) GetTask() {
 		}	
 		
 		//from redis get is_idle task
-		to_do := self.manager.GetRedisTask(is_idle)
+		to_do := self.Manager.GetRedisTask(is_idle)
 
 		for k,v := range to_do {
 			go self.Assign(v,idle_container_id[k])
@@ -41,21 +39,22 @@ func (self *JudgeWorker) GetTask() {
 
 func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	
-	self.manager.container_pool[container_id].is_work = true
+	self.Manager.container_pool[container_id].is_work = true
 	fmt.Println(taskinfo)
 	fmt.Println(container_id)
-	file,err := os.Create(self.manager.tmp_path+"/"+container_id+"/"+"code.cpp")
+
+	err := self.Manager.CreateFile(taskinfo.Code,container_id,"code.cpp")
 	if err != nil {
-		fmt.Println("create file error!")
+		fmt.Println("create code file error!")
 		return
 	}
-	_,err2 := file.WriteString(taskinfo.Code)
-    //fmt.Println(n)
-    if err2 != nil {
-		fmt.Println("writestring to file error!")
-		return
-    }
-			
+
+	//get standard input and output
+	//err = self.Manager.GetStandardIOP(taskinfo.Pid)
+	//if err != nil {
+	//	fmt.Println("get standard input and output error!")
+	//	return
+	//}
 }
 
 
