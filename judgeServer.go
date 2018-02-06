@@ -10,6 +10,7 @@ var (
 	max_num int
 	image_name string
 	tmp_path string
+	input_path string
 	redis_address string
 )
 
@@ -23,6 +24,7 @@ func main() {
 	max_num = cfg.MustInt("Docker", "MaxNum")
 	image_name = cfg.MustValue("Docker","ImageName")	
 	tmp_path = cfg.MustValue("File","TmpPath")	
+	input_path = cfg.MustValue("File","InputPath")
 	redis_address = cfg.MustValue("Redis","Addr")
 
 	fmt.Println(image_name)
@@ -30,6 +32,7 @@ func main() {
 	server.SetMaxDockerNum(max_num)	
 	server.SetImageName(image_name)
 	server.SetTmpPath(tmp_path)
+	server.SetInputPath(input_path)
 	server.SetRedisAddress(redis_address)
 	server.Init()
 	server.Run()

@@ -14,6 +14,7 @@ type JudgeServer struct{
 	max_docker_num int
 	image_name string
 	tmp_path	string
+	input_path  string
 	container_pool map[string]*ClientInfo                //container id --> client
 	worker JudgeWorker
 	RedisServer
@@ -21,6 +22,10 @@ type JudgeServer struct{
 
 func (self *JudgeServer) SetTmpPath(path string) {
 	self.tmp_path = path
+}
+
+func (self *JudgeServer) SetInputPath(path string) {
+	self.input_path = path
 }
 
 func (self *JudgeServer) SetMaxDockerNum(num int) {
