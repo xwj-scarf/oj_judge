@@ -9,6 +9,17 @@ import (
 	"errors"
 )
 
+func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
+	return nil
+}
+
+func (self *JudgeServer) RunInContainer(containerId string) error{
+	return nil
+}
+
+func (self *JudgeServer) JudgeOutput(containerId string) error{
+	return nil
+}
 
 func (self *JudgeServer) SendToContainer(file_name, containerId string) error{
 
