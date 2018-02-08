@@ -3,7 +3,6 @@ package judgeServer
 import (
 	"fmt"
     "github.com/docker/docker/api/types"
-    "github.com/docker/docker/api/types/container"
     "github.com/docker/docker/client"
 	"golang.org/x/net/context"
 	"os"
@@ -46,40 +45,18 @@ func (self *JudgeServer) Run() {
 	self.container_pool = make(map[string]*ClientInfo)
 
 	for i:=0;i<self.max_docker_num;i++ {
-	    ctx := context.Background()
-    	cli, err := client.NewEnvClient()
-    	if err != nil {
-        	panic(err)
-    	}
-
-    	imageName := self.image_name
-    	resp, err := cli.ContainerCreate(ctx, &container.Config{
-        	Image: imageName,
-        	Cmd: []string{"/bin/bash"},
-        	Tty: true,
-        	AttachStdout:true, 
-     	   	AttachStderr:true,
-   		 }, nil, nil, "")
-
-    	if err != nil {
-        	panic(err)
-    	}
-		if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
-			panic(err)
-		}
-		fmt.Println(resp.ID)
-		self.container_pool[resp.ID] = &ClientInfo{
+		respID,cli := self.CreateContainer(self.image_name)
+		self.container_pool[respID] = &ClientInfo{
 			client: cli,
-			is_work: false,	
+			is_work:false,
 		}
 
-		tmp_path := self.tmp_path + "/"+resp.ID
-		err = os.MkdirAll(tmp_path,0777)
+		tmp_path := self.tmp_path + "/"+respID
+		err := os.MkdirAll(tmp_path,0777)
 		if err != nil {
 			fmt.Println("create tmp_path error!")
 			return
-		}
-	 
+		} 
 	}
 
 	for k,v := range self.container_pool {

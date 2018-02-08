@@ -3,6 +3,7 @@ package judgeServer
 import (
 	"time"
 	"fmt"
+	"os"
 )
 
 type JudgeWorker struct {
@@ -12,7 +13,6 @@ type JudgeWorker struct {
 func (self *JudgeWorker) Run() {
 	go self.GetTask()
 	fmt.Println("run .......")
-
 }
 
 
@@ -85,9 +85,22 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.Manager.ComplieCodeInContainer(container_id) 
 	if err != nil {
 		fmt.Println("complie code in container error!")
-		//TODO   Write to Mysql  mark ce times+1 
+		//TODO   Write to Mysql  mark failed times+1 
 		return
 	 }
+
+	err = self.Manager.CopyFromContainer(container_id,"ce.txt")
+	if err != nil {
+		fmt.Println("copy from container error!")
+		return
+	}
+
+	err = self.JudgeIsCe(container_id) 
+	if err != nil {
+		fmt.Println("code is ce!")
+		//mark
+		return
+	}
 
 	//run code in container
 	err = self.Manager.RunInContainer(container_id) 
@@ -109,5 +122,19 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 }
 
 
-
-
+func (self *JudgeWorker) JudgeIsCe(container_id string)error{
+	dest_path := self.Manager.tmp_path+"/"+container_id+"/"+"out.txt"
+	fileInfo, err := os.Stat(dest_path)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	fileSize := fileInfo.Size() //获取size
+	if fileSize == 0 {
+		fmt.Println("complie success")
+		return nil
+	}else {
+		fmt.Println("complie error!")
+		return nil
+	}	
+}
