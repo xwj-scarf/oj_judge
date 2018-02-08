@@ -42,6 +42,32 @@ func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
 }
 
 func (self *JudgeServer) RunInContainer(containerId string) error{
+	client_info, ok := self.container_pool[containerId]
+	if !ok {
+		return errors.New("get container client error")
+	}
+	cli := client_info.client
+	ctx := context.Background()
+
+    respexecruncode,err := cli.ContainerExecCreate(ctx,containerId,types.ExecConfig{
+        AttachStdout:true,
+        AttachStderr:true,
+        Cmd: []string{"sh","/tmp/do.sh"},
+    })
+
+    if err != nil {
+        fmt.Println(err)
+        return err
+    }
+
+    resprunexecruncode,err := cli.ContainerExecAttach(ctx,respexecruncode.ID,types.ExecStartCheck{
+        Tty:true,
+    })
+	fmt.Println(resprunexecruncode)
+    if err != nil {
+        fmt.Println(err)
+		return err
+    }	
 	return nil
 }
 

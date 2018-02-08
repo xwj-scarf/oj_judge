@@ -4,6 +4,12 @@ import (
 	"time"
 	"fmt"
 	"os"
+    "io/ioutil"
+	"errors"
+	"crypto/md5"
+	"io"
+	"strconv"
+    "encoding/hex"
 )
 
 type JudgeWorker struct {
@@ -43,8 +49,6 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	}(container_id)
 
 	self.Manager.container_pool[container_id].is_work = true
-	//fmt.Println(taskinfo)
-	//fmt.Println(container_id)
 
 	//create code.cpp
 	err := self.Manager.CreateFile(taskinfo.Code,container_id,"code.cpp")
@@ -89,6 +93,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 		return
 	 }
 
+	time.Sleep(1*time.Second)
 	err = self.Manager.CopyFromContainer(container_id,"ce.txt")
 	if err != nil {
 		fmt.Println("copy from container error!")
@@ -109,9 +114,17 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 		//TODO   Write to Mysql  mark re times+1 
 		return
 	 }
-	
+
+	time.Sleep(1*time.Second)	
+	//copy output from container
+	err = self.Manager.CopyFromContainer(container_id,"output.txt")
+	if err != nil {
+		fmt.Println("copy output.txt from container error")
+		return
+	}
+
 	//judge output 
-	err = self.Manager.JudgeOutput(container_id)
+	err = self.JudgeIsAc(container_id,taskinfo.Pid)
 	if err != nil {
 		fmt.Println("judge output error!")
 		//TODO   Write to Mysql  mark wa times+1 
@@ -121,20 +134,66 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	//Write to Mysql mark ac times+1
 }
 
+func (self *JudgeWorker) JudgeIsAc(container_id string,pid int) error {
+	container_output_path := self.Manager.tmp_path + "/" + container_id + "/" + "output.txt"
+	standard_output_path := self.Manager.input_path + "/" + strconv.Itoa(pid) + "/" + "output.txt"
+	
+	container_output,err:= os.Open(container_output_path)
+	if err != nil {
+		fmt.Println("open container output.txt error!")
+		fmt.Println(err)
+		return err
+	}
+
+	standard_output,err := os.Open(standard_output_path)
+	if err != nil {
+		fmt.Println("open standard output.txt error!")
+		fmt.Println(err)
+		return err
+	}
+
+	md5_container_output := md5.New()
+	io.Copy(md5_container_output,container_output)
+	md5_container_output_md5 :=hex.EncodeToString(md5_container_output.Sum(nil)) 
+	//md5_container_output_md5 := md5_container_output.Sum([]byte(""))
+	fmt.Println("md5 container output.txt is : ",string(md5_container_output_md5))
+
+	md5_standard_output := md5.New()
+	io.Copy(md5_standard_output,standard_output)
+	md5_standard_output_md5 :=hex.EncodeToString(md5_standard_output.Sum(nil))
+
+	//md5_standard_output_md5 := md5_standard_output.Sum([]byte(""))
+	fmt.Println("md5 standard output.txt is : ",string(md5_standard_output_md5))
+
+	if string(md5_standard_output_md5) == string(md5_container_output_md5) {
+		fmt.Println("ac!")
+		return nil
+	}
+	return errors.New("wa")
+
+}
 
 func (self *JudgeWorker) JudgeIsCe(container_id string)error{
-	dest_path := self.Manager.tmp_path+"/"+container_id+"/"+"out.txt"
+	dest_path := self.Manager.tmp_path+"/"+container_id+"/"+"ce.txt"
 	fileInfo, err := os.Stat(dest_path)
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
 	fileSize := fileInfo.Size() //获取size
+	fmt.Println(fileSize)
 	if fileSize == 0 {
 		fmt.Println("complie success")
 		return nil
 	}else {
-		fmt.Println("complie error!")
-		return nil
-	}	
+		b, err := ioutil.ReadFile(dest_path)
+		if err != nil {
+			fmt.Print(err)
+			return err
+		}
+		str := string(b)
+		fmt.Println(str)
+		return errors.New("complie error!")
+	}
+	return nil	
 }

@@ -16,8 +16,14 @@ func main() {
 	conn,_ := redis.Dial("tcp","127.0.0.1:6379")
 	code1 := &C{
 		Code:	 `#include<iostream>
+				 #include<cstdio>
 				  using namespace std;
-				  int main(){cout<<"asd"<<endl}`,
+				  int main(){
+					int a,b;
+					while(scanf("%d%d",&a,&b)!=EOF) {
+						printf("%d %d\n",a+1,b+1);
+					}				
+}`,
 		Pid:	 1,
 	
 	}
