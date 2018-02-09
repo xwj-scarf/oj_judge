@@ -16,6 +16,8 @@ type JudgeServer struct{
 	container_pool map[string]*ClientInfo                //container id --> client
 	worker JudgeWorker
 	RedisServer
+	mysql judgeMysql
+	judge_time_out int
 }
 
 func (self *JudgeServer) SetTmpPath(path string) {
@@ -30,6 +32,10 @@ func (self *JudgeServer) SetMaxDockerNum(num int) {
 	self.max_docker_num = num
 }
 
+func (self *JudgeServer) SetJudgeTimeOut(time_out int) {
+	self.judge_time_out = time_out
+}
+
 func (self *JudgeServer) SetImageName(image_name string) {
 	self.image_name = image_name
 }
@@ -41,6 +47,7 @@ func (self *JudgeServer) Init() {
 func (self *JudgeServer) Run() {
 	defer self.Stop()
 	self.worker.Manager = self
+	self.mysql.Manager = self
 	self.container_pool = make(map[string]*ClientInfo)
 
 	for i:=0;i<self.max_docker_num;i++ {

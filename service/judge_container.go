@@ -32,13 +32,6 @@ func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
         return err
     }
 
-/*
-	err1 := cli.ContainerExecStart(ctx,respexec.ID,types.ExecStartCheck{
-		Detach:false,
-		Tty:false,
-	})
-*/
-
     respexecruncode,err1 := cli.ContainerExecAttach(ctx,respexec.ID,types.ExecStartCheck{
         Tty:false,
 		Detach:false,
@@ -50,6 +43,7 @@ func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
 		return err1
     }
 
+	timer := time.Now().Unix()
 	for {
 		execInfo,err:= cli.ContainerExecInspect(ctx,respexec.ID)
 		if err != nil {
@@ -59,6 +53,10 @@ func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
 			time.Sleep(1*time.Second)
 		} else {
 			break
+		}
+		now := time.Now().Unix()
+		if now - timer > int64(self.judge_time_out) {
+			return errors.New("complie time out!")
 		}
 	}
 	return nil
@@ -90,6 +88,7 @@ func (self *JudgeServer) RunInContainer(containerId string) error{
         fmt.Println(err)
 		return err
     }
+	timer := time.Now().Unix()
 	for {
 		execInfo,err:= cli.ContainerExecInspect(ctx,respexecruncode.ID)
 		if err != nil {
@@ -99,6 +98,10 @@ func (self *JudgeServer) RunInContainer(containerId string) error{
 			time.Sleep(1*time.Second)
 		} else {
 			break
+		}
+		now := time.Now().Unix()
+		if now - timer > int64(self.judge_time_out) {
+			return errors.New("run code time out!")
 		}
 	}
 	return nil

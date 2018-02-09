@@ -28,7 +28,6 @@ func (self *JudgeWorker) Run() {
 
 func (self *JudgeWorker) GetTask() {
 	done := 0
-	start_time := time.Now().Unix()
 	for {
 		is_idle := 0
 		var idle_container_id  []string
@@ -47,10 +46,7 @@ func (self *JudgeWorker) GetTask() {
 		for k,v := range to_do {
 			go self.Assign(v,idle_container_id[k])
 		}
-		now_time := time.Now().Unix()
-		if now_time - start_time > 60 {
-			break
-		}	
+	
 		time.Sleep(1*time.Second)
 	}
 }

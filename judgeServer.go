@@ -8,6 +8,7 @@ import (
 
 var (
 	max_num int
+	judge_time_out int
 	image_name string
 	tmp_path string
 	input_path string
@@ -26,6 +27,7 @@ func main() {
 	tmp_path = cfg.MustValue("File","TmpPath")	
 	input_path = cfg.MustValue("File","InputPath")
 	redis_address = cfg.MustValue("Redis","Addr")
+	judge_time_out = cfg.MustInt("Judge","TimeOut")
 
 	fmt.Println(image_name)
 	var server judgeServer.JudgeServer
@@ -34,6 +36,7 @@ func main() {
 	server.SetTmpPath(tmp_path)
 	server.SetInputPath(input_path)
 	server.SetRedisAddress(redis_address)
+	server.SetJudgeTimeOut(judge_time_out)
 	server.Init()
 	server.Run()
 }
