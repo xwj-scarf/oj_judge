@@ -1,8 +1,8 @@
 package judgeServer
 
 import (
-	"time"
 	"fmt"
+	"time"
 	"os"
     "io/ioutil"
 	"errors"
@@ -27,6 +27,8 @@ func (self *JudgeWorker) Run() {
 
 
 func (self *JudgeWorker) GetTask() {
+	done := 0
+	start_time := time.Now().Unix()
 	for {
 		is_idle := 0
 		var idle_container_id  []string
@@ -36,17 +38,20 @@ func (self *JudgeWorker) GetTask() {
 				idle_container_id = append(idle_container_id,k)
 			}
 		}	
-		
+		fmt.Println("now idle container number is :",is_idle)
+		fmt.Println("now done problem num is : ",done)
+		done = done + is_idle	
 		//from redis get is_idle task
 		to_do := self.Manager.GetRedisTask(is_idle)
 
 		for k,v := range to_do {
 			go self.Assign(v,idle_container_id[k])
+		}
+		now_time := time.Now().Unix()
+		if now_time - start_time > 60 {
+			break
 		}	
-		//if is_idle == 0 {
-		//	break
-		//}
-		time.Sleep(10*time.Second)
+		time.Sleep(1*time.Second)
 	}
 }
 
@@ -100,7 +105,6 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 		return
 	 }
 
-	//time.Sleep(1*time.Second)
 	err = self.Manager.CopyFromContainer(container_id,"ce.txt")
 	if err != nil {
 		fmt.Println("copy from container error!")
@@ -122,7 +126,6 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 		return
 	 }
 
-	//time.Sleep(1*time.Second)	
 	//copy output from container
 	err = self.Manager.CopyFromContainer(container_id,"output.txt")
 	if err != nil {

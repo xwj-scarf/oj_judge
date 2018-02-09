@@ -198,7 +198,7 @@ func (self *JudgeServer) CopyFromContainer(container_id,file_name string) error 
 		fmt.Println(err1)
 		return err1
 	}
-    //defer returnoutput.Close()
+    defer returnoutput.Close()
 	//fmt.Println(err1)
     fmt.Println(out)
 
