@@ -33,28 +33,5 @@ func main() {
 	}
 	fmt.Println(string(data))
 	conn.Do("lpush","test",data)	
-	//conn.Do("lpush","test",data)	
-	//conn.Do("lpush","test",data)	
 
-	/*
-	lpop,_ := redis.Bytes(conn.Do("lpop","test"))
-	fmt.Println(lpop)
-
-    stb := &C{}
-    err = json.Unmarshal(lpop, &stb)
-	if err != nil {
-	
-	}
-	fmt.Println(stb.Code)
-	fmt.Println(stb.Pid)
-	file,err1 := os.Create("/tmp/1")
-	if err1 != nil {
-		
-	}
-
-	n,err2 := file.WriteString(stb.Code)
-	fmt.Println(n)
-	if err2 != nil {
-
-	}*/
 }

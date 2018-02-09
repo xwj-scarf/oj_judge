@@ -6,7 +6,6 @@ import (
     "github.com/docker/docker/client"
 	"golang.org/x/net/context"
 	"os"
-	"time"
 )
 
 type JudgeServer struct{
@@ -64,7 +63,6 @@ func (self *JudgeServer) Run() {
 		fmt.Println(v)
 	}
 	self.worker.Run()
-	time.Sleep(1000*time.Second)
 }
 
 

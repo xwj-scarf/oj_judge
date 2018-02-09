@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"io"
+	"time"
 )
 
 func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
@@ -24,20 +25,42 @@ func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
  
     respexec,err := cli.ContainerExecCreate(ctx,containerId,types.ExecConfig{
         Cmd: []string{"sh","/tmp/complie.sh"},
+		Detach:false,
     })
 
     if err != nil {
         return err
     }
 
+/*
+	err1 := cli.ContainerExecStart(ctx,respexec.ID,types.ExecStartCheck{
+		Detach:false,
+		Tty:false,
+	})
+*/
+
     respexecruncode,err1 := cli.ContainerExecAttach(ctx,respexec.ID,types.ExecStartCheck{
-        Tty:true,
+        Tty:false,
+		Detach:false,
+		
     })
-	fmt.Println(respexecruncode)
+	defer respexecruncode.Close()
     if err1 != nil {
         fmt.Println(err1)
 		return err1
     }
+
+	for {
+		execInfo,err:= cli.ContainerExecInspect(ctx,respexec.ID)
+		if err != nil {
+			return err
+		}
+		if execInfo.Running == true {
+			time.Sleep(1*time.Second)
+		} else {
+			break
+		}
+	}
 	return nil
 }
 
@@ -50,24 +73,34 @@ func (self *JudgeServer) RunInContainer(containerId string) error{
 	ctx := context.Background()
 
     respexecruncode,err := cli.ContainerExecCreate(ctx,containerId,types.ExecConfig{
-        AttachStdout:true,
-        AttachStderr:true,
+		Detach:false,
         Cmd: []string{"sh","/tmp/do.sh"},
     })
-
     if err != nil {
         fmt.Println(err)
         return err
     }
-
+	
     resprunexecruncode,err := cli.ContainerExecAttach(ctx,respexecruncode.ID,types.ExecStartCheck{
-        Tty:true,
+        Tty:false,
+		Detach: false,
     })
-	fmt.Println(resprunexecruncode)
+	defer resprunexecruncode.Close()
     if err != nil {
         fmt.Println(err)
 		return err
-    }	
+    }
+	for {
+		execInfo,err:= cli.ContainerExecInspect(ctx,respexecruncode.ID)
+		if err != nil {
+			return err
+		}
+		if execInfo.Running == true {
+			time.Sleep(1*time.Second)
+		} else {
+			break
+		}
+	}
 	return nil
 }
 

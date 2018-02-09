@@ -19,6 +19,10 @@ type JudgeWorker struct {
 func (self *JudgeWorker) Run() {
 	go self.GetTask()
 	fmt.Println("run .......")
+
+	for {
+		time.Sleep(10*time.Second)
+	}
 }
 
 
@@ -39,6 +43,9 @@ func (self *JudgeWorker) GetTask() {
 		for k,v := range to_do {
 			go self.Assign(v,idle_container_id[k])
 		}	
+		//if is_idle == 0 {
+		//	break
+		//}
 		time.Sleep(10*time.Second)
 	}
 }
@@ -93,7 +100,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 		return
 	 }
 
-	time.Sleep(1*time.Second)
+	//time.Sleep(1*time.Second)
 	err = self.Manager.CopyFromContainer(container_id,"ce.txt")
 	if err != nil {
 		fmt.Println("copy from container error!")
@@ -115,7 +122,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 		return
 	 }
 
-	time.Sleep(1*time.Second)	
+	//time.Sleep(1*time.Second)	
 	//copy output from container
 	err = self.Manager.CopyFromContainer(container_id,"output.txt")
 	if err != nil {
