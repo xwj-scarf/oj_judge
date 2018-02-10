@@ -21,13 +21,12 @@ func (self *JudgeWorker) Run() {
 	fmt.Println("run .......")
 
 	for {
-		time.Sleep(10*time.Second)
+		time.Sleep(1*time.Second)
 	}
 }
 
 
 func (self *JudgeWorker) GetTask() {
-	done := 0
 	for {
 		is_idle := 0
 		var idle_container_id  []string
@@ -37,9 +36,6 @@ func (self *JudgeWorker) GetTask() {
 				idle_container_id = append(idle_container_id,k)
 			}
 		}	
-		fmt.Println("now idle container number is :",is_idle)
-		fmt.Println("now done problem num is : ",done)
-		done = done + is_idle	
 		//from redis get is_idle task
 		to_do := self.Manager.GetRedisTask(is_idle)
 
@@ -47,12 +43,14 @@ func (self *JudgeWorker) GetTask() {
 			go self.Assign(v,idle_container_id[k])
 		}
 	
-		time.Sleep(1*time.Second)
+		time.Sleep(2*time.Second)
 	}
 }
 
 func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	defer func (container_id string) {
+		self.Manager.DelFile(container_id)
+		self.Manager.DelFileInContainer(container_id)
 		self.Manager.container_pool[container_id].is_work = false
 	}(container_id)
 
@@ -90,6 +88,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.Manager.SendToContainer("input.txt" ,container_id)
 	if err != nil {
 		fmt.Println("send input to container error!")
+		self.Manager.mysql.MarkError(taskinfo.Sid)
 		return
 	}
 
@@ -97,6 +96,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.Manager.ComplieCodeInContainer(container_id) 
 	if err != nil {
 		fmt.Println("complie code in container error!")
+		self.Manager.mysql.MarkUserCe(taskinfo.Sid)
 		//TODO   Write to Mysql  mark failed times+1 
 		return
 	 }
@@ -104,12 +104,14 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.Manager.CopyFromContainer(container_id,"ce.txt")
 	if err != nil {
 		fmt.Println("copy from container error!")
+		self.Manager.mysql.MarkError(taskinfo.Sid)
 		return
 	}
 
 	err = self.JudgeIsCe(container_id) 
 	if err != nil {
 		fmt.Println("code is ce!")
+		self.Manager.mysql.MarkUserCe(taskinfo.Sid)
 		//mark
 		return
 	}
@@ -118,6 +120,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.Manager.RunInContainer(container_id) 
 	if err != nil {
 		fmt.Println("run code in container error!")
+		self.Manager.mysql.MarkError(taskinfo.Sid)
 		//TODO   Write to Mysql  mark re times+1 
 		return
 	 }
@@ -126,6 +129,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.Manager.CopyFromContainer(container_id,"output.txt")
 	if err != nil {
 		fmt.Println("copy output.txt from container error")
+		self.Manager.mysql.MarkError(taskinfo.Sid)
 		return
 	}
 
@@ -133,10 +137,11 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.JudgeIsAc(container_id,taskinfo.Pid)
 	if err != nil {
 		fmt.Println("judge output error!")
+		self.Manager.mysql.MarkUserWa(taskinfo.Sid)
 		//TODO   Write to Mysql  mark wa times+1 
 		return
 	 }
-
+	self.Manager.mysql.MarkUserAc(taskinfo.Sid)
 	//Write to Mysql mark ac times+1
 }
 
@@ -161,14 +166,12 @@ func (self *JudgeWorker) JudgeIsAc(container_id string,pid int) error {
 	md5_container_output := md5.New()
 	io.Copy(md5_container_output,container_output)
 	md5_container_output_md5 :=hex.EncodeToString(md5_container_output.Sum(nil)) 
-	//md5_container_output_md5 := md5_container_output.Sum([]byte(""))
 	fmt.Println("md5 container output.txt is : ",string(md5_container_output_md5))
 
 	md5_standard_output := md5.New()
 	io.Copy(md5_standard_output,standard_output)
 	md5_standard_output_md5 :=hex.EncodeToString(md5_standard_output.Sum(nil))
 
-	//md5_standard_output_md5 := md5_standard_output.Sum([]byte(""))
 	fmt.Println("md5 standard output.txt is : ",string(md5_standard_output_md5))
 
 	if string(md5_standard_output_md5) == string(md5_container_output_md5) {

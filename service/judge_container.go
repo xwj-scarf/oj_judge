@@ -37,8 +37,8 @@ func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
 		Detach:false,
 		
     })
-	defer respexecruncode.Close()
-    if err1 != nil {
+	defer respexecruncode.Close() 
+	if err1 != nil {
         fmt.Println(err1)
 		return err1
     }
@@ -173,7 +173,7 @@ func (self *JudgeServer) SendToContainer(file_name, containerId string) error{
     }
 
     tarreader := bytes.NewReader(buf0.Bytes())
-
+	//defer tarreader.Close()
     err1 := cli.CopyToContainer(ctx,containerId,destPath,tarreader, types.CopyToContainerOptions{
             AllowOverwriteDirWithFile:true, 
     })
@@ -202,27 +202,85 @@ func (self *JudgeServer) CopyFromContainer(container_id,file_name string) error 
 		return err1
 	}
     defer returnoutput.Close()
-	//fmt.Println(err1)
-    fmt.Println(out)
-
-    tr := tar.NewReader(returnoutput)
-    _, err := tr.Next()
-    if err != nil {
-        fmt.Println(err)
-		return err
-    }
-
-    file, err2 := os.Create(dest_path)
-    if err2 != nil {
-        fmt.Println(err2)
+	fmt.Println(out)
+	//if file_name == "ce.txt" {
+	//	if out.Size == 0 {
+	//		return nil
+	//	}
+	//}
+	file,err2 := os.Create(dest_path)
+	if err2 != nil {
+		fmt.Println(err2)
 		return err2
-    }
-    defer file.Close()
+	}
+	defer file.Close()
+	tr := tar.NewReader(returnoutput)
+	for {
+			_, err := tr.Next()
+            if err == io.EOF {
+                break
+            }
+            if err != nil {
+				fmt.Println(err)
+				return err
+            }
+            buf := new(bytes.Buffer)
+            buf.ReadFrom(tr)  
+			_, err = io.Copy(file,buf)
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
+            //wholeContent := buf.String() 
+	}
 
-    _, err = io.Copy(file, tr)
-    if err != nil {
-        fmt.Println(err)
-		return err
-    }
 	return nil
 }
+
+func (self *JudgeServer) DelFileInContainer(containerId string) error{
+	client_info, ok := self.container_pool[containerId]	
+	if !ok {
+		return errors.New("get container client error!")
+	}
+	cli := client_info.client
+	ctx := context.Background()
+ 
+    respexec,err := cli.ContainerExecCreate(ctx,containerId,types.ExecConfig{
+        Cmd: []string{"rm","-rf","/tmp/input.txt /tmp/output.txt /tmp/code.cpp"},
+		Detach:false,
+    })
+
+    if err != nil {
+        return err
+    }
+
+    respexecruncode,err1 := cli.ContainerExecAttach(ctx,respexec.ID,types.ExecStartCheck{
+        Tty:false,
+		Detach:false,
+		
+    })
+	defer respexecruncode.Close()
+    if err1 != nil {
+        fmt.Println(err1)
+		return err1
+    }
+
+	timer := time.Now().Unix()
+	for {
+		execInfo,err:= cli.ContainerExecInspect(ctx,respexec.ID)
+		if err != nil {
+			return err
+		}
+		if execInfo.Running == true {
+			time.Sleep(1*time.Second)
+		} else {
+			break
+		}
+		now := time.Now().Unix()
+		if now - timer > int64(self.judge_time_out) {
+			return errors.New("remove file error")
+		}
+	}
+	return nil
+}
+

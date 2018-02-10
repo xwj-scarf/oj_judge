@@ -19,6 +19,9 @@ type JudgeServer struct{
 	mysql judgeMysql
 	judge_time_out int
 }
+func (self *JudgeServer) SetMysqlInfo(mysqlinfo MysqlInfo) {
+	self.mysql.Init(mysqlinfo)
+}
 
 func (self *JudgeServer) SetTmpPath(path string) {
 	self.tmp_path = path
@@ -75,6 +78,7 @@ func (self *JudgeServer) Run() {
 
 //when process done,kill containers
 func (self *JudgeServer)Stop() {
+	self.mysql.Stop()
     ctx := context.Background()
 
 	cli, err := client.NewEnvClient()

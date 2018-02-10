@@ -4,6 +4,8 @@ import (
 	"os"
 	"strconv"
 	"io"
+	"fmt"
+	"io/ioutil"
 )
 
 func (self *JudgeServer) CreateFile(message,container_id,file_name string) error{
@@ -36,4 +38,20 @@ func (self *JudgeServer) CopyFile(container_id string, pid int,file_name string)
 	return err3
 }
 
-
+func (self *JudgeServer) DelFile(container_id string) {
+	file_path := self.tmp_path + "/" + container_id + "/"
+    dir_list, err := ioutil.ReadDir(file_path)
+    if err != nil {
+        fmt.Println("read dir error")
+        return
+    }
+    for _, v := range dir_list {
+		err := os.Remove(file_path+v.Name())
+		if err != nil {
+			fmt.Println(err)
+			return	
+		}
+        fmt.Println( v.Name())
+    }
+	return
+}
