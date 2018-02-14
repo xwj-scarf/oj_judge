@@ -34,7 +34,7 @@ func (self *judgeMysql) Stop() {
 
 func (self *judgeMysql) MarkUserCe(sid int) {
 	now := time.Now().Unix()
-    stmt, err := self.db.Prepare(`update submit_status set status = ?, update_time = ? where id = ?`)
+    stmt, err := self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`)
     defer stmt.Close()
     if err != nil {
         fmt.Println(err)
@@ -58,7 +58,7 @@ func (self *judgeMysql) MarkUserCe(sid int) {
 
 func (self *judgeMysql) MarkUserAc(sid int) {
 	now := time.Now().Unix()
-	stmt, err := self.db.Prepare(`update submit_status set status = ?, update_time = ? where id = ?`)
+	stmt, err := self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`)
 	defer stmt.Close()
 	if err != nil {
 		fmt.Println(err)
@@ -82,7 +82,7 @@ func (self *judgeMysql) MarkUserAc(sid int) {
 
 func (self *judgeMysql) MarkUserWa(sid int) {
 	now := time.Now().Unix()
-	stmt, err := self.db.Prepare(`update submit_status set status = ?, update_time = ? where id = ?`)
+	stmt, err := self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`)
 	defer stmt.Close()
 	if err != nil {
 		fmt.Println(err)
@@ -107,7 +107,7 @@ func (self *judgeMysql) MarkUserWa(sid int) {
 
 func (self *judgeMysql) MarkError(sid int) {
 	now := time.Now().Unix()
-	stmt, err := self.db.Prepare(`update submit_status set status = ?, update_time = ? where id = ?`)
+	stmt, err := self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`)
 	defer stmt.Close()
 	if err != nil {
 		fmt.Println(err)

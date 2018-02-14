@@ -91,7 +91,7 @@ func insert_to_redis(op int) {
 	}
 
 	now := time.Now().Unix()
-    stmt, err := db.Prepare(`insert into submit_status (pid,uid,update_time) values(?,?,?)`)
+    stmt, err := db.Prepare(`insert into submit_info (pid,uid,update_time) values(?,?,?)`)
     defer stmt.Close()
     if err != nil {
         fmt.Println(err)
