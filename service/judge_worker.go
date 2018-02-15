@@ -125,6 +125,21 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 		return
 	 }
 
+	err = self.Manager.CopyFromContainer(container_id,"time.txt")
+	if err != nil {
+		fmt.Println("copy time.txt from container error")
+		self.Manager.mysql.MarkError(taskinfo.Sid)
+		return
+	}
+
+	err = self.Manager.CopyFromContainer(container_id,"m.txt")
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println("copy mem.txt from container error")
+		self.Manager.mysql.MarkError(taskinfo.Sid)
+		return
+	}
+
 	//copy output from container
 	err = self.Manager.CopyFromContainer(container_id,"output.txt")
 	if err != nil {
@@ -142,6 +157,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 		return
 	 }
 	self.Manager.mysql.MarkUserAc(taskinfo.Sid)
+	time.Sleep(10000*time.Second)
 	//Write to Mysql mark ac times+1
 }
 
