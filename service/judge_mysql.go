@@ -56,15 +56,15 @@ func (self *judgeMysql) MarkUserCe(sid int) {
 	}
 }
 
-func (self *judgeMysql) MarkUserAc(sid int) {
+func (self *judgeMysql) MarkUserAc(sid int,use_time,use_memory int) {
 	now := time.Now().Unix()
-	stmt, err := self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`)
+	stmt, err := self.db.Prepare(`update submit_info set status = ?,time_use = ?, memory_use = ?, update_time = ? where id = ?`)
 	defer stmt.Close()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	res,err := stmt.Exec(6,now,sid)
+	res,err := stmt.Exec(6,use_time,use_memory,now,sid)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -80,15 +80,15 @@ func (self *judgeMysql) MarkUserAc(sid int) {
 	}
 }
 
-func (self *judgeMysql) MarkUserWa(sid int) {
+func (self *judgeMysql) MarkUserWa(sid int,use_time,use_memory int) {
 	now := time.Now().Unix()
-	stmt, err := self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`)
+	stmt, err := self.db.Prepare(`update submit_info set status = ?,time_use = ?, memory_use = ?, update_time = ? where id = ?`)
 	defer stmt.Close()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	res,err := stmt.Exec(2,now,sid)
+	res,err := stmt.Exec(2,use_time,use_memory,now,sid)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -129,6 +129,70 @@ func (self *judgeMysql) MarkError(sid int) {
 	}
 }
 
-func (self *judgeMysql) MarkUserTle() {
+func (self *judgeMysql) MarkTle(time_use,sid int) {
+	now := time.Now().Unix()
+	stmt, err := self.db.Prepare(`update submit_info set time_use = ? ,status = ?, update_time = ? where id = ?`)
+	defer stmt.Close()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	res,err := stmt.Exec(time_use,3,now,sid)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	num,err := res.RowsAffected()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if num <= 0 {
+		fmt.Println("update error")
+		return
+	}
+}
 
+func (self *judgeMysql) MarkMle(mem_use ,sid int) {
+	now := time.Now().Unix()
+	stmt, err := self.db.Prepare(`update submit_info set memory_use = ?,status = ?, update_time = ? where id = ?`)
+	defer stmt.Close()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	res,err := stmt.Exec(mem_use,4,now,sid)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	num,err := res.RowsAffected()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if num <= 0 {
+		fmt.Println("update error")
+		return
+	}
+}
+
+func (self *judgeMysql) GetTimeAndMemoryLimit(pid int) (int,int,error) {
+	rows, _ := self.db.Query("select time_limit,memory_limit from problem_info where pid = ?",pid);
+	defer rows.Close()	
+	var time_limit int
+	var memory_limit int	
+	for rows.Next() {
+		if err := rows.Scan(&time_limit,&memory_limit);err != nil {
+			fmt.Println(err)
+			return 0,0,err
+		}
+		fmt.Println(time_limit)
+		fmt.Println(memory_limit)
+	}
+	if err := rows.Err();err != nil {
+		fmt.Println(err)
+		return 0,0,err
+	}	
+	return time_limit,memory_limit,nil
 }

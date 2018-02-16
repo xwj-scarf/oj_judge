@@ -10,6 +10,7 @@ import (
 	"io"
 	"strconv"
     "encoding/hex"
+	"strings"
 )
 
 type JudgeWorker struct {
@@ -125,6 +126,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 		return
 	 }
 
+	//copy time and memory use in container
 	err = self.Manager.CopyFromContainer(container_id,"time.txt")
 	if err != nil {
 		fmt.Println("copy time.txt from container error")
@@ -140,6 +142,15 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 		return
 	}
 
+	//judge is_time_out and is_memory_out 
+	use_time,use_memory,err3 := self.JudgeIsTimeOutAndMemoryOut(container_id,taskinfo.Pid,taskinfo.Sid)
+	if err3 != nil {
+		fmt.Println(err3)
+		self.Manager.mysql.MarkError(taskinfo.Sid)
+		return
+	}
+
+
 	//copy output from container
 	err = self.Manager.CopyFromContainer(container_id,"output.txt")
 	if err != nil {
@@ -152,13 +163,11 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.JudgeIsAc(container_id,taskinfo.Pid)
 	if err != nil {
 		fmt.Println("judge output error!")
-		self.Manager.mysql.MarkUserWa(taskinfo.Sid)
+		self.Manager.mysql.MarkUserWa(taskinfo.Sid,use_time,use_memory)
 		//TODO   Write to Mysql  mark wa times+1 
 		return
 	 }
-	self.Manager.mysql.MarkUserAc(taskinfo.Sid)
-	time.Sleep(10000*time.Second)
-	//Write to Mysql mark ac times+1
+	self.Manager.mysql.MarkUserAc(taskinfo.Sid,use_time,use_memory)
 }
 
 func (self *JudgeWorker) JudgeIsAc(container_id string,pid int) error {
@@ -196,6 +205,55 @@ func (self *JudgeWorker) JudgeIsAc(container_id string,pid int) error {
 	}
 	return errors.New("wa")
 
+}
+
+func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid int) (int,int,error) {
+	time_limit,mem_limit,err:= self.Manager.mysql.GetTimeAndMemoryLimit(pid)
+	if err != nil {
+		fmt.Println("get time and memory limit error!")
+		return 0,0,errors.New("get time and memory limit error")
+	}
+
+	dest_time_path := self.Manager.tmp_path + "/" + container_id + "/" + "time.txt"
+	b,err1 := ioutil.ReadFile(dest_time_path)
+
+	if err1 != nil {
+		fmt.Println(err1)
+		return 0,0,err1
+	}
+
+	fmt.Println(string(b))
+
+	use_time,err5 := strconv.Atoi(strings.Replace(string(b),"\n","",-1))
+
+	if err5 != nil {
+		fmt.Println(err5)
+	}
+	fmt.Println("use_time is ",use_time)
+
+	if use_time > time_limit {
+		fmt.Println("time limit!")
+		self.Manager.mysql.MarkTle(time_limit,sid)
+		return time_limit,0,nil
+	}
+
+	dest_mem_path := self.Manager.tmp_path + "/" + container_id + "/" + "m.txt"
+	b, err1 = ioutil.ReadFile(dest_mem_path)
+	if err1 != nil {
+		fmt.Println(err1)
+		return 0,0,err1
+	}
+	use_memory,_ := strconv.Atoi(strings.Replace(string(b),"\n","",-1))
+
+	fmt.Println("use_mem is ",use_memory)
+
+	if use_memory > mem_limit {
+		fmt.Println("memory limit!")
+		self.Manager.mysql.MarkMle(mem_limit,sid)
+		return 0,mem_limit,nil
+	}
+	return use_time,use_memory,nil
+	
 }
 
 func (self *JudgeWorker) JudgeIsCe(container_id string)error{
