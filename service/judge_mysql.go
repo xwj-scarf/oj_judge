@@ -58,7 +58,7 @@ func (self *judgeMysql) MarkUserCe(sid int) {
 
 func (self *judgeMysql) MarkUserAc(sid int,use_time,use_memory int) {
 	now := time.Now().Unix()
-	stmt, err := self.db.Prepare(`update submit_info set status = ?,time_use = ?, memory_use = ?, update_time = ? where id = ?`)
+	stmt, err := self.db.Prepare(`update submit_info a inner join problem_info b on a.pid = b.pid set a.status = ?,a.time_use = ?, a.memory_use = ?, a.update_time = ?, b.ac_num = b.ac_num + 1 where a.id = ?`)
 	defer stmt.Close()
 	if err != nil {
 		fmt.Println(err)

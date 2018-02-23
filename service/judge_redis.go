@@ -31,7 +31,7 @@ func (self *RedisServer) GetRedisTask(num int) []*SubmitInfo{
 		lpop,_ := redis.Bytes(self.conn.Do("lpop","test"))
 		to_do := &SubmitInfo{}
 		if lpop == nil {
-			fmt.Println("no submit to do")
+			//fmt.Println("no submit to do")
 			return to_do_list
 		}
 		err := json.Unmarshal(lpop,&to_do)
