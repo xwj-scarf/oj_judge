@@ -32,9 +32,15 @@ func (self *judgeMysql) Stop() {
 	self.db.Close()
 }
 
-func (self *judgeMysql) MarkUserCe(sid int) {
+func (self *judgeMysql) MarkUserCe(sid int,cid int) {
 	now := time.Now().Unix()
-    stmt, err := self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`)
+	var stmt *sql.Stmt
+	var err error
+	if cid <= 0 {
+		stmt, err = self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`) 
+	} else {
+		stmt, err = self.db.Prepare(`update contest_submit_info set status = ?,update_time = ? where id = ?`)
+	}
     defer stmt.Close()
     if err != nil {
         fmt.Println(err)
@@ -56,9 +62,15 @@ func (self *judgeMysql) MarkUserCe(sid int) {
 	}
 }
 
-func (self *judgeMysql) MarkUserAc(sid int,use_time,use_memory int) {
+func (self *judgeMysql) MarkUserAc(sid int,use_time,use_memory int,cid int) {
 	now := time.Now().Unix()
-	stmt, err := self.db.Prepare(`update submit_info a inner join problem_info b on a.pid = b.pid set a.status = ?,a.time_use = ?, a.memory_use = ?, a.update_time = ?, b.ac_num = b.ac_num + 1 where a.id = ?`)
+	var stmt *sql.Stmt
+	var err error
+	if cid <= 0 { 
+		stmt, err = self.db.Prepare(`update submit_info a inner join problem_info b on a.pid = b.pid set a.status = ?,a.time_use = ?, a.memory_use = ?, a.update_time = ?, b.ac_num = b.ac_num + 1 where a.id = ?`)
+	} else {
+		stmt, err = self.db.Prepare(`update contest_submit_info a inner join contest_problem_info b on a.pid = b.show_pid set a.status = ?,a.time_use = ?, a.memory_use = ?, a.update_time = ?, b.ac_num = b.ac_num + 1 where a.id = ?`)	
+	}
 	defer stmt.Close()
 	if err != nil {
 		fmt.Println(err)
@@ -80,9 +92,15 @@ func (self *judgeMysql) MarkUserAc(sid int,use_time,use_memory int) {
 	}
 }
 
-func (self *judgeMysql) MarkUserWa(sid int,use_time,use_memory int) {
+func (self *judgeMysql) MarkUserWa(sid int,use_time,use_memory int,cid int) {
 	now := time.Now().Unix()
-	stmt, err := self.db.Prepare(`update submit_info set status = ?,time_use = ?, memory_use = ?, update_time = ? where id = ?`)
+	var stmt *sql.Stmt
+	var err error
+	if cid <= 0 {
+		stmt, err = self.db.Prepare(`update submit_info set status = ?,time_use = ?, memory_use = ?, update_time = ? where id = ?`)
+	} else {
+		stmt, err = self.db.Prepare(`update contest_submit_info set status = ?,time_use = ?, memory_use = ?,update_time = ? where id = ?`)
+	}
 	defer stmt.Close()
 	if err != nil {
 		fmt.Println(err)
@@ -105,9 +123,15 @@ func (self *judgeMysql) MarkUserWa(sid int,use_time,use_memory int) {
 
 }
 
-func (self *judgeMysql) MarkError(sid int) {
+func (self *judgeMysql) MarkError(sid int,cid int) {
 	now := time.Now().Unix()
-	stmt, err := self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`)
+	var stmt *sql.Stmt
+	var err error
+	if cid <= 0 {
+		stmt, err = self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`)
+	} else {
+		stmt, err = self.db.Prepare(`update contest_submit_info set status = ?,update_time = ? where id = ?`)
+	}
 	defer stmt.Close()
 	if err != nil {
 		fmt.Println(err)
@@ -129,9 +153,16 @@ func (self *judgeMysql) MarkError(sid int) {
 	}
 }
 
-func (self *judgeMysql) MarkTle(time_use,sid int) {
+func (self *judgeMysql) MarkTle(time_use,sid int,cid int) {
 	now := time.Now().Unix()
-	stmt, err := self.db.Prepare(`update submit_info set time_use = ? ,status = ?, update_time = ? where id = ?`)
+
+	var stmt *sql.Stmt
+	var err error
+	if cid <= 0 {	
+		stmt, err = self.db.Prepare(`update submit_info set time_use = ? ,status = ?, update_time = ? where id = ?`)
+	} else {
+		stmt, err = self.db.Prepare(`update contest_submit_info set time_use = ? ,status = ?, update_time = ? where id = ?`)
+	}
 	defer stmt.Close()
 	if err != nil {
 		fmt.Println(err)
@@ -153,9 +184,15 @@ func (self *judgeMysql) MarkTle(time_use,sid int) {
 	}
 }
 
-func (self *judgeMysql) MarkMle(mem_use ,sid int) {
+func (self *judgeMysql) MarkMle(mem_use ,sid int,cid int) {
 	now := time.Now().Unix()
-	stmt, err := self.db.Prepare(`update submit_info set memory_use = ?,status = ?, update_time = ? where id = ?`)
+	var stmt *sql.Stmt
+	var err error
+	if cid <= 0 {
+		stmt, err = self.db.Prepare(`update submit_info set memory_use = ?,status = ?, update_time = ? where id = ?`) 
+	} else {
+		stmt, err = self.db.Prepare(`update contest_submit_info set memory_use = ?,status = ?, update_time = ? where id = ?`) 
+	}
 	defer stmt.Close()
 	if err != nil {
 		fmt.Println(err)

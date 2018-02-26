@@ -25,4 +25,5 @@ type SubmitInfo struct {
 	Pid int     //problem id
 	Sid int		//submit id
 	Uid int		//user id
+	Cid int		//contest id
 }

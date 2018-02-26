@@ -89,7 +89,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.Manager.SendToContainer("input.txt" ,container_id)
 	if err != nil {
 		fmt.Println("send input to container error!")
-		self.Manager.mysql.MarkError(taskinfo.Sid)
+		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
 
@@ -97,7 +97,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.Manager.ComplieCodeInContainer(container_id) 
 	if err != nil {
 		fmt.Println("complie code in container error!")
-		self.Manager.mysql.MarkUserCe(taskinfo.Sid)
+		self.Manager.mysql.MarkUserCe(taskinfo.Sid,taskinfo.Cid)
 		//TODO   Write to Mysql  mark failed times+1 
 		return
 	 }
@@ -105,14 +105,14 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.Manager.CopyFromContainer(container_id,"ce.txt")
 	if err != nil {
 		fmt.Println("copy from container error!")
-		self.Manager.mysql.MarkError(taskinfo.Sid)
+		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
 
 	err = self.JudgeIsCe(container_id) 
 	if err != nil {
 		fmt.Println("code is ce!")
-		self.Manager.mysql.MarkUserCe(taskinfo.Sid)
+		self.Manager.mysql.MarkUserCe(taskinfo.Sid,taskinfo.Cid)
 		//mark
 		return
 	}
@@ -121,7 +121,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.Manager.RunInContainer(container_id) 
 	if err != nil {
 		fmt.Println("run code in container error!")
-		self.Manager.mysql.MarkError(taskinfo.Sid)
+		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		//TODO   Write to Mysql  mark re times+1 
 		return
 	 }
@@ -130,7 +130,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.Manager.CopyFromContainer(container_id,"time.txt")
 	if err != nil {
 		fmt.Println("copy time.txt from container error")
-		self.Manager.mysql.MarkError(taskinfo.Sid)
+		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
 
@@ -138,15 +138,15 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	if err != nil {
 		fmt.Println(err)
 		fmt.Println("copy mem.txt from container error")
-		self.Manager.mysql.MarkError(taskinfo.Sid)
+		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
 
 	//judge is_time_out and is_memory_out 
-	use_time,use_memory,err3 := self.JudgeIsTimeOutAndMemoryOut(container_id,taskinfo.Pid,taskinfo.Sid)
+	use_time,use_memory,err3 := self.JudgeIsTimeOutAndMemoryOut(container_id,taskinfo.Pid,taskinfo.Sid,taskinfo.Cid)
 	if err3 != nil {
 		fmt.Println(err3)
-		self.Manager.mysql.MarkError(taskinfo.Sid)
+		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
 
@@ -155,7 +155,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.Manager.CopyFromContainer(container_id,"output.txt")
 	if err != nil {
 		fmt.Println("copy output.txt from container error")
-		self.Manager.mysql.MarkError(taskinfo.Sid)
+		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
 
@@ -163,11 +163,11 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.JudgeIsAc(container_id,taskinfo.Pid)
 	if err != nil {
 		fmt.Println("judge output error!")
-		self.Manager.mysql.MarkUserWa(taskinfo.Sid,use_time,use_memory)
+		self.Manager.mysql.MarkUserWa(taskinfo.Sid,use_time,use_memory,taskinfo.Cid)
 		//TODO   Write to Mysql  mark wa times+1 
 		return
 	 }
-	self.Manager.mysql.MarkUserAc(taskinfo.Sid,use_time,use_memory)
+	self.Manager.mysql.MarkUserAc(taskinfo.Sid,use_time,use_memory,taskinfo.Cid)
 }
 
 func (self *JudgeWorker) JudgeIsAc(container_id string,pid int) error {
@@ -207,7 +207,7 @@ func (self *JudgeWorker) JudgeIsAc(container_id string,pid int) error {
 
 }
 
-func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid int) (int,int,error) {
+func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid int,cid int) (int,int,error) {
 	time_limit,mem_limit,err:= self.Manager.mysql.GetTimeAndMemoryLimit(pid)
 	if err != nil {
 		fmt.Println("get time and memory limit error!")
@@ -233,7 +233,7 @@ func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid 
 
 	if use_time > time_limit {
 		fmt.Println("time limit!")
-		self.Manager.mysql.MarkTle(time_limit,sid)
+		self.Manager.mysql.MarkTle(time_limit,sid,cid)
 		return time_limit,0,nil
 	}
 
@@ -249,7 +249,7 @@ func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid 
 
 	if use_memory > mem_limit {
 		fmt.Println("memory limit!")
-		self.Manager.mysql.MarkMle(mem_limit,sid)
+		self.Manager.mysql.MarkMle(mem_limit,sid,cid)
 		return 0,mem_limit,nil
 	}
 	return use_time,use_memory,nil
