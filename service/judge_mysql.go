@@ -69,14 +69,14 @@ func (self *judgeMysql) MarkUserAc(sid int,use_time,use_memory int,cid int) {
 	if cid <= 0 { 
 		stmt, err = self.db.Prepare(`update submit_info a inner join problem_info b on a.pid = b.pid set a.status = ?,a.time_use = ?, a.memory_use = ?, a.update_time = ?, b.ac_num = b.ac_num + 1 where a.id = ?`)
 	} else {
-		stmt, err = self.db.Prepare(`update contest_submit_info a inner join contest_problem_info b on a.pid = b.show_pid set a.status = ?,a.time_use = ?, a.memory_use = ?, a.update_time = ?, b.ac_num = b.ac_num + 1 where a.id = ?`)	
+		stmt, err = self.db.Prepare(`update contest_submit_info a inner join contest_problem_info b on a.pid = b.show_pid set a.status = ?,a.time_use = ?, a.memory_use = ?, a.update_time = ?, b.ac_num = b.ac_num + 1 where a.id = ? and b.contest_id = ?`)	
 	}
 	defer stmt.Close()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	res,err := stmt.Exec(6,use_time,use_memory,now,sid)
+	res,err := stmt.Exec(6,use_time,use_memory,now,sid,cid)
 	if err != nil {
 		fmt.Println(err)
 		return
