@@ -126,6 +126,21 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 		return
 	 }
 
+	//copy is_runtime_error.txt in container
+	err = self.Manager.CopyFromContainer(container_id,"runtime.txt")
+	if err != nil {
+		fmt.Println("copy runtime.txt from container error")
+		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
+		return
+	}
+
+	err = self.JudgeIsRunTimeError(container_id)
+	if err != nil {
+		fmt.Println(err)
+		self.Manager.mysql.MarkUserRe(taskinfo.Sid,taskinfo.Cid)
+		return	
+	}
+
 	//copy time and memory use in container
 	err = self.Manager.CopyFromContainer(container_id,"time.txt")
 	if err != nil {
@@ -208,6 +223,32 @@ func (self *JudgeWorker) JudgeIsAc(container_id string,pid int) error {
 	}
 	return errors.New("wa")
 
+}
+
+func (self *JudgeWorker) JudgeIsRunTimeError(container_id string) error {
+	dest_path := self.Manager.tmp_path + "/" + container_id + "/" + "runtime.txt"
+
+	fileInfo, err := os.Stat(dest_path)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	fileSize := fileInfo.Size() //获取size
+	fmt.Println(fileSize)
+	if fileSize == 0 {
+		fmt.Println("no runtime error")
+		return nil
+	}else {
+		b, err := ioutil.ReadFile(dest_path)
+		if err != nil {
+			fmt.Print(err)
+			return err
+		}
+		str := string(b)
+		fmt.Println(str)
+		return errors.New("runtime error!")
+	}
+	return nil	
 }
 
 func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid int,cid int) (int,int,bool,error) {

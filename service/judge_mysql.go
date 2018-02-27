@@ -62,6 +62,36 @@ func (self *judgeMysql) MarkUserCe(sid int, cid int) {
 	}
 }
 
+func (self *judgeMysql) MarkUserRe(sid int, cid int) {
+	now := time.Now().Unix()
+	var stmt *sql.Stmt
+	var err error
+	if cid <= 0 {
+		stmt, err = self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`)
+	} else {
+		stmt, err = self.db.Prepare(`update contest_submit_info set status = ?,update_time = ? where id = ?`)
+	}
+	defer stmt.Close()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	res, err := stmt.Exec(5, now, sid)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	num, err := res.RowsAffected()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if num <= 0 {
+		fmt.Println("update error")
+		return
+	}
+}
+
 func (self *judgeMysql) MarkUserAc(sid int, use_time, use_memory int, cid int) {
 	now := time.Now().Unix()
 	var stmt *sql.Stmt
