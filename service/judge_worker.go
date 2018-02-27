@@ -143,13 +143,16 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	}
 
 	//judge is_time_out and is_memory_out 
-	use_time,use_memory,err3 := self.JudgeIsTimeOutAndMemoryOut(container_id,taskinfo.Pid,taskinfo.Sid,taskinfo.Cid)
+	use_time,use_memory,is_tleormle,err3 := self.JudgeIsTimeOutAndMemoryOut(container_id,taskinfo.Pid,taskinfo.Sid,taskinfo.Cid)
 	if err3 != nil {
 		fmt.Println(err3)
 		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
-
+	
+	if is_tleormle {
+		return
+	}
 
 	//copy output from container
 	err = self.Manager.CopyFromContainer(container_id,"output.txt")
@@ -207,11 +210,11 @@ func (self *JudgeWorker) JudgeIsAc(container_id string,pid int) error {
 
 }
 
-func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid int,cid int) (int,int,error) {
+func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid int,cid int) (int,int,bool,error) {
 	time_limit,mem_limit,err:= self.Manager.mysql.GetTimeAndMemoryLimit(pid)
 	if err != nil {
 		fmt.Println("get time and memory limit error!")
-		return 0,0,errors.New("get time and memory limit error")
+		return 0,0,false,errors.New("get time and memory limit error")
 	}
 
 	dest_time_path := self.Manager.tmp_path + "/" + container_id + "/" + "time.txt"
@@ -219,7 +222,7 @@ func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid 
 
 	if err1 != nil {
 		fmt.Println(err1)
-		return 0,0,err1
+		return 0,0,false,err1
 	}
 
 	fmt.Println(string(b))
@@ -234,14 +237,14 @@ func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid 
 	if use_time > time_limit {
 		fmt.Println("time limit!")
 		self.Manager.mysql.MarkTle(time_limit,sid,cid)
-		return time_limit,0,nil
+		return time_limit,0,true,nil
 	}
 
 	dest_mem_path := self.Manager.tmp_path + "/" + container_id + "/" + "m.txt"
 	b, err1 = ioutil.ReadFile(dest_mem_path)
 	if err1 != nil {
 		fmt.Println(err1)
-		return 0,0,err1
+		return 0,0,false,err1
 	}
 	use_memory,_ := strconv.Atoi(strings.Replace(string(b),"\n","",-1))
 
@@ -250,9 +253,9 @@ func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid 
 	if use_memory > mem_limit {
 		fmt.Println("memory limit!")
 		self.Manager.mysql.MarkMle(mem_limit,sid,cid)
-		return 0,mem_limit,nil
+		return 0,mem_limit,true,nil
 	}
-	return use_time,use_memory,nil
+	return use_time,use_memory,false,nil
 	
 }
 
