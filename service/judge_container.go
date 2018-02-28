@@ -101,10 +101,22 @@ func (self *JudgeServer) RunInContainer(containerId string) error{
 		}
 		now := time.Now().Unix()
 		if now - timer > int64(self.judge_time_out) {
+			self.restartContainer(containerId)
 			return errors.New("run code time out!")
 		}
 	}
 	return nil
+}
+
+func (self *JudgeServer) restartContainer(containerId string) {
+	client_info,_ := self.container_pool[containerId]
+	cli := client_info.client
+	ctx := context.Background()
+	
+	err := cli.ContainerRestart(ctx,containerId,nil)
+	if err != nil {
+		fmt.Println(err)
+	}	
 }
 
 func (self *JudgeServer) JudgeOutput(containerId string) error{
