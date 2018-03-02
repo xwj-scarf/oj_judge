@@ -52,11 +52,12 @@ func (self *JudgeWorker) GetTask() {
 
 func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	defer func (container_id string) {
+		self.Manager.DelFile(container_id)
+		self.Manager.DelFileInContainer(container_id)
 		self.Manager.judge_mutex.Lock()
 		self.Manager.container_pool[container_id].is_work = false
 		self.Manager.judge_mutex.Unlock()
-		self.Manager.DelFile(container_id)
-		self.Manager.DelFileInContainer(container_id)
+
 	}(container_id)
 
 	self.Manager.judge_mutex.Lock()

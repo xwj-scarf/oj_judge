@@ -1,13 +1,14 @@
 package main
 
 import ( 
-	"math/rand"
+	_"math/rand"
 	"fmt"
 	"time"
     "github.com/garyburd/redigo/redis"
     "encoding/json"
 	"database/sql"
     _"github.com/go-sql-driver/mysql"
+	"sync"
 )
 type C struct {
 	Code string
@@ -21,6 +22,8 @@ var err error
 var conn redis.Conn
 func main() {
 
+	var mutex *sync.RWMutex
+	mutex = new (sync.RWMutex)
     conn,_ = redis.Dial("tcp","127.0.0.1:6379")
     db,err = sql.Open("mysql","root:123456@tcp(127.0.0.1:3306)/oj?charset=utf8")
     if err != nil {
@@ -38,15 +41,17 @@ func main() {
 	
 	for {
 		for i:=0;i<5;i++ {
-			op := rand.Intn(3)
+			op := i%3
+			mutex.Lock()			
 			remark[op] ++
+			mutex.Unlock()
 			insert_to_redis(op)
 		}
 		count  = count + 5
-		if count >= 300 {
+		if count >= 500 {
 			break
 		}
-		time.Sleep(2*time.Second)
+		time.Sleep(1*time.Second)
 	}
 	fmt.Println("0 ce   1 ac   2 wa")
 	fmt.Println(remark)

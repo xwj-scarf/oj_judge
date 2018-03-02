@@ -277,7 +277,7 @@ func (self *JudgeServer) DelFileInContainer(containerId string) error{
 	ctx := context.Background()
  
     respexec,err := cli.ContainerExecCreate(ctx,containerId,types.ExecConfig{
-        Cmd: []string{"rm","-rf","/tmp/input.txt /tmp/output.txt /tmp/code.cpp"},
+        Cmd: []string{"rm","/tmp/input.txt /tmp/output.txt /tmp/code.cpp"},
 		Detach:false,
     })
 
