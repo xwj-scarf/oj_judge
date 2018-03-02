@@ -16,10 +16,13 @@ import (
 )
 
 func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
+	self.judge_mutex.RLock()
 	client_info, ok := self.container_pool[containerId]	
 	if !ok {
+		self.judge_mutex.RUnlock()
 		return errors.New("get container client error!")
 	}
+	self.judge_mutex.RUnlock()
 	cli := client_info.client
 	ctx := context.Background()
  
@@ -29,6 +32,7 @@ func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
     })
 
     if err != nil {
+		fmt.Println(err)
         return err
     }
 
@@ -47,6 +51,7 @@ func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
 	for {
 		execInfo,err:= cli.ContainerExecInspect(ctx,respexec.ID)
 		if err != nil {
+			fmt.Println(err)
 			return err
 		}
 		if execInfo.Running == true {
@@ -63,10 +68,13 @@ func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
 }
 
 func (self *JudgeServer) RunInContainer(containerId string) error{
+	self.judge_mutex.RLock()
 	client_info, ok := self.container_pool[containerId]
 	if !ok {
+		self.judge_mutex.RUnlock()
 		return errors.New("get container client error")
 	}
+	self.judge_mutex.RUnlock()
 	cli := client_info.client
 	ctx := context.Background()
 
@@ -109,7 +117,9 @@ func (self *JudgeServer) RunInContainer(containerId string) error{
 }
 
 func (self *JudgeServer) restartContainer(containerId string) {
+	self.judge_mutex.RLock()
 	client_info,_ := self.container_pool[containerId]
+	self.judge_mutex.RUnlock()
 	cli := client_info.client
 	ctx := context.Background()
 	
@@ -149,10 +159,13 @@ func (self *JudgeServer) CreateContainer(image_name string) (string,*client.Clie
 }
 
 func (self *JudgeServer) SendToContainer(file_name, containerId string) error{
+	self.judge_mutex.RLock()
 	client_info, ok := self.container_pool[containerId]		
 	if !ok {
+		self.judge_mutex.RUnlock()
 		return errors.New("get container client error!")
 	}
+	self.judge_mutex.RUnlock()
 	cli := client_info.client
 	ctx := context.Background()
  
@@ -200,10 +213,13 @@ func (self *JudgeServer) CopyFromContainer(container_id,file_name string) error 
 	file_path := "/tmp/" + file_name
 	dest_path := self.tmp_path+"/"+container_id+"/"+file_name
 
+	self.judge_mutex.RLock()
 	client_info, ok := self.container_pool[container_id]		
 	if !ok {
+		self.judge_mutex.RUnlock()
 		return errors.New("get container client error!")
 	}
+	self.judge_mutex.RUnlock()
 	cli := client_info.client
 	ctx := context.Background()
 
@@ -250,10 +266,13 @@ func (self *JudgeServer) CopyFromContainer(container_id,file_name string) error 
 }
 
 func (self *JudgeServer) DelFileInContainer(containerId string) error{
+	self.judge_mutex.RLock()
 	client_info, ok := self.container_pool[containerId]	
 	if !ok {
+		self.judge_mutex.RUnlock()
 		return errors.New("get container client error!")
 	}
+	self.judge_mutex.RUnlock()
 	cli := client_info.client
 	ctx := context.Background()
  

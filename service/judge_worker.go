@@ -31,12 +31,14 @@ func (self *JudgeWorker) GetTask() {
 	for {
 		is_idle := 0
 		var idle_container_id  []string
+		self.Manager.judge_mutex.RLock()
 		for k,v := range self.Manager.container_pool{
 			if v.is_work == false {
 				is_idle = is_idle + 1
 				idle_container_id = append(idle_container_id,k)
 			}
-		}	
+		}
+		self.Manager.judge_mutex.RUnlock()	
 		//from redis get is_idle task
 		to_do := self.Manager.GetRedisTask(is_idle)
 
@@ -50,12 +52,16 @@ func (self *JudgeWorker) GetTask() {
 
 func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	defer func (container_id string) {
+		self.Manager.judge_mutex.Lock()
+		self.Manager.container_pool[container_id].is_work = false
+		self.Manager.judge_mutex.Unlock()
 		self.Manager.DelFile(container_id)
 		self.Manager.DelFileInContainer(container_id)
-		self.Manager.container_pool[container_id].is_work = false
 	}(container_id)
 
+	self.Manager.judge_mutex.Lock()
 	self.Manager.container_pool[container_id].is_work = true
+	self.Manager.judge_mutex.Unlock()
 
 	//create code.cpp
 	err := self.Manager.CreateFile(taskinfo.Code,container_id,"code.cpp")

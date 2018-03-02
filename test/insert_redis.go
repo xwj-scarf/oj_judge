@@ -1,6 +1,7 @@
 package main
 
-import ( "math/rand"
+import ( 
+	"math/rand"
 	"fmt"
 	"time"
     "github.com/garyburd/redigo/redis"
@@ -33,6 +34,8 @@ func main() {
 	remark[1]=0
 	remark[2]=0
 
+	//insert_to_redis(1)
+	
 	for {
 		for i:=0;i<5;i++ {
 			op := rand.Intn(3)
@@ -40,10 +43,10 @@ func main() {
 			insert_to_redis(op)
 		}
 		count  = count + 5
-		if count >= 500 {
+		if count >= 300 {
 			break
 		}
-		time.Sleep(1*time.Second)
+		time.Sleep(2*time.Second)
 	}
 	fmt.Println("0 ce   1 ac   2 wa")
 	fmt.Println(remark)
@@ -60,7 +63,7 @@ func insert_to_redis(op int) {
                   int main(){
                     int a,b;
                     while(scanf("%d%d",&a,&b)!=EOF) {
-                        printf("%d %d\n",a+1,b+1);
+                        printf("%d\n",a+b);
                     }               
 				}`
 	} 
@@ -91,19 +94,27 @@ func insert_to_redis(op int) {
 	}
 
 	now := time.Now().Unix()
-    stmt, err := db.Prepare(`insert into submit_info (pid,uid,update_time) values(?,?,?)`)
-    defer stmt.Close()
+
+	stmt,_ := db.Prepare(`update problem_info set total_num = total_num + 1 where pid = ?`)
+	_,err123 := stmt.Exec(1)
+	if err123 != nil {
+		fmt.Println(err123)
+	}
+	defer stmt.Close()
+
+    stmt1, err := db.Prepare(`insert into submit_info (pid,uid,time_use,memory_use,add_time,update_time) values(?,?,?,?,?,?)`)
+    defer stmt1.Close()
     if err != nil {
         fmt.Println(err)
         return 
     }
-    res,err := stmt.Exec("1","1",now)
+    res1,err := stmt1.Exec("1","1",0,0,now,now)
     if err != nil {
         fmt.Println(err)
         return 
     }
 
-    id, _ := res.LastInsertId()
+    id, _ := res1.LastInsertId()
     fmt.Println(id) 
 
     code1 := &C{

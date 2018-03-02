@@ -6,6 +6,7 @@ import (
     "github.com/docker/docker/client"
 	"golang.org/x/net/context"
 	"os"
+	"sync"
 )
 
 type JudgeServer struct{
@@ -18,7 +19,9 @@ type JudgeServer struct{
 	RedisServer
 	mysql judgeMysql
 	judge_time_out int
+	judge_mutex *sync.RWMutex
 }
+
 func (self *JudgeServer) SetMysqlInfo(mysqlinfo MysqlInfo) {
 	self.mysql.Init(mysqlinfo)
 }
@@ -52,6 +55,7 @@ func (self *JudgeServer) Run() {
 	self.worker.Manager = self
 	self.mysql.Manager = self
 	self.container_pool = make(map[string]*ClientInfo)
+	self.judge_mutex = new(sync.RWMutex)
 
 	for i:=0;i<self.max_docker_num;i++ {
 		respID,cli := self.CreateContainer(self.image_name)
