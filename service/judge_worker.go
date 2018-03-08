@@ -19,6 +19,7 @@ type JudgeWorker struct {
 
 func (self *JudgeWorker) Run() {
 	go self.GetTask()
+	go self.checkContainerHealth()
 	fmt.Println("run .......")
 
 	for {
@@ -26,6 +27,18 @@ func (self *JudgeWorker) Run() {
 	}
 }
 
+func (self *JudgeWorker) checkContainerHealth() {
+	for {
+		self.Manager.judge_mutex.RLock()
+		for k,_ := range self.Manager.container_pool {
+			if !self.Manager.checkContainerInspect(k) {
+				self.Manager.restartContainer(k)
+			}			
+		}
+		self.Manager.judge_mutex.RUnlock()
+		time.Sleep(10*time.Second)
+	}
+}
 
 func (self *JudgeWorker) GetTask() {
 	for {

@@ -116,6 +116,25 @@ func (self *JudgeServer) RunInContainer(containerId string) error{
 	return nil
 }
 
+func (self *JudgeServer) checkContainerInspect(containerId string) bool{
+	self.judge_mutex.RLock()
+	client_info,_ := self.container_pool[containerId]
+	self.judge_mutex.RUnlock()
+	cli := client_info.client
+	ctx := context.Background()
+
+	inspect, err := cli.ContainerInspect(ctx,containerId) 
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	if inspect.State.Running != true || inspect.State.ExitCode != 0 || inspect.State.Error != "" {
+		fmt.Println(inspect.State)
+		return false
+	}
+	return true
+}
+
 func (self *JudgeServer) restartContainer(containerId string) {
 	self.judge_mutex.RLock()
 	client_info,_ := self.container_pool[containerId]
