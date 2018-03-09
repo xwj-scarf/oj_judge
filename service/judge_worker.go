@@ -113,6 +113,9 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 		return
 	}
 
+	self.Manager.ChangePermission(container_id,"/tmp/code.cpp")
+	self.Manager.ChangePermission(container_id,"/tmp/input.txt")
+
 	//complie code in container
 	err = self.Manager.ComplieCodeInContainer(container_id) 
 	if err != nil {
@@ -121,6 +124,8 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 		//TODO   Write to Mysql  mark failed times+1 
 		return
 	 }
+
+	self.Manager.ChangePermission(container_id,"/tmp/code")
 
 	err = self.Manager.CopyFromContainer(container_id,"ce.txt")
 	if err != nil {

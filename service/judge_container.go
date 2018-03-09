@@ -67,6 +67,56 @@ func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
 	return nil
 }
 
+func (self *JudgeServer) ChangePermission(containerId string,file_path string) error {
+	self.judge_mutex.RLock()
+	client_info, ok := self.container_pool[containerId]
+	if !ok {
+		self.judge_mutex.RUnlock()
+		return errors.New("get container client error")
+	}
+	self.judge_mutex.RUnlock()
+	cli := client_info.client
+	ctx := context.Background()
+
+    respexecruncode,err := cli.ContainerExecCreate(ctx,containerId,types.ExecConfig{
+		Detach:false,
+		User: "root",
+        Cmd: []string{"chmod","777",file_path},
+    })
+    if err != nil {
+        fmt.Println(err)
+        return err
+    }
+	
+    resprunexecruncode,err := cli.ContainerExecAttach(ctx,respexecruncode.ID,types.ExecStartCheck{
+        Tty:false,
+		Detach: false,
+    })
+	defer resprunexecruncode.Close()
+    if err != nil {
+        fmt.Println(err)
+		return err
+    }
+	timer := time.Now().Unix()
+	for {
+		execInfo,err:= cli.ContainerExecInspect(ctx,respexecruncode.ID)
+		if err != nil {
+			return err
+		}
+		if execInfo.Running == true {
+			time.Sleep(1*time.Second)
+		} else {
+			break
+		}
+		now := time.Now().Unix()
+		if now - timer > int64(self.judge_time_out) {
+			self.restartContainer(containerId)
+			return errors.New("change permission error")
+		}
+	}
+	return nil
+}
+
 func (self *JudgeServer) RunInContainer(containerId string) error{
 	self.judge_mutex.RLock()
 	client_info, ok := self.container_pool[containerId]

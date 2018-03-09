@@ -1,3 +1,3 @@
 #!/bin/bash
 
-bash -c 'sh worker.sh 2>runtime.txt' >& runtime.txt
+bash -c 'sh /tmp/worker.sh 2>/tmp/runtime.txt' >& /tmp/runtime.txt

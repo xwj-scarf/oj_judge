@@ -1,4 +1,4 @@
 #!/bin/bash
 
-g++ /tmp/code.cpp -o code >& /tmp/ce.txt
+g++ /tmp/code.cpp -o /tmp/code >& /tmp/ce.txt
 

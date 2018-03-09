@@ -1,0 +1,18 @@
+From ubuntu
+
+RUN useradd -u 1000 -m -s /bin/bash docker
+
+USER docker 
+COPY do.sh /tmp/
+COPY worker.sh /tmp/
+COPY check_memory.sh /tmp/
+COPY complie.sh /tmp/
+
+USER root
+RUN apt-get update
+RUN yes | apt-get install build-essential
+
+RUN rm -rf /bin/sh && ln -s /bin/bash /bin/sh
+
+USER docker
+
