@@ -13,164 +13,64 @@ import (
 	"os"
 	"io"
 	"time"
+	"sync"
 )
 
-func (self *JudgeServer) ComplieCodeInContainer(containerId string) error{
-	self.judge_mutex.RLock()
-	client_info, ok := self.container_pool[containerId]	
-	if !ok {
-		self.judge_mutex.RUnlock()
-		return errors.New("get container client error!")
-	}
-	self.judge_mutex.RUnlock()
-	cli := client_info.client
-	ctx := context.Background()
- 
-    respexec,err := cli.ContainerExecCreate(ctx,containerId,types.ExecConfig{
-        Cmd: []string{"sh","/tmp/complie.sh"},
-		Detach:false,
-    })
-
-    if err != nil {
-		fmt.Println(err)
-        return err
-    }
-
-    respexecruncode,err1 := cli.ContainerExecAttach(ctx,respexec.ID,types.ExecStartCheck{
-        Tty:false,
-		Detach:false,
-		
-    })
-	defer respexecruncode.Close() 
-	if err1 != nil {
-        fmt.Println(err1)
-		return err1
-    }
-
-	timer := time.Now().Unix()
-	for {
-		execInfo,err:= cli.ContainerExecInspect(ctx,respexec.ID)
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-		if execInfo.Running == true {
-			time.Sleep(1*time.Second)
-		} else {
-			break
-		}
-		now := time.Now().Unix()
-		if now - timer > int64(self.judge_time_out) {
-			return errors.New("complie time out!")
-		}
-	}
-	return nil
+type JudgeContainerManager struct{
+	manager *JudgeServer
+    container_pool map[string]*ClientInfo                //container id --> client
+	judge_mutex *sync.RWMutex
+	image_name string
+	max_docker_num int
 }
 
-func (self *JudgeServer) ChangePermission(containerId string,file_path string) error {
+func (self *JudgeContainerManager) SetMaxDockerNum(num int) {
+    self.max_docker_num = num
+}
+
+func (self *JudgeContainerManager) SetImageName(image_name string) {
+    self.image_name = image_name
+}
+
+func (self *JudgeContainerManager) Init() {
+    self.judge_mutex = new(sync.RWMutex)
+	self.container_pool = make(map[string]*ClientInfo)
+
+    for i:=0;i<self.max_docker_num;i++ {
+        respID,cli := self.CreateContainer(self.image_name)
+        self.container_pool[respID] = &ClientInfo{
+            client: cli,
+            is_work:false,
+        }
+    }
+}
+
+func (self *JudgeContainerManager) getClientInfo(containerId string) *client.Client{
 	self.judge_mutex.RLock()
+	defer self.judge_mutex.RUnlock()
 	client_info, ok := self.container_pool[containerId]
 	if !ok {
-		self.judge_mutex.RUnlock()
-		return errors.New("get container client error")
+		fmt.Println("get container client error!")
+		return nil
 	}
-	self.judge_mutex.RUnlock()
 	cli := client_info.client
-	ctx := context.Background()
-
-    respexecruncode,err := cli.ContainerExecCreate(ctx,containerId,types.ExecConfig{
-		Detach:false,
-		User: "root",
-        Cmd: []string{"chmod","777",file_path},
-    })
-    if err != nil {
-        fmt.Println(err)
-        return err
-    }
-	
-    resprunexecruncode,err := cli.ContainerExecAttach(ctx,respexecruncode.ID,types.ExecStartCheck{
-        Tty:false,
-		Detach: false,
-    })
-	defer resprunexecruncode.Close()
-    if err != nil {
-        fmt.Println(err)
-		return err
-    }
-	timer := time.Now().Unix()
-	for {
-		execInfo,err:= cli.ContainerExecInspect(ctx,respexecruncode.ID)
-		if err != nil {
-			return err
-		}
-		if execInfo.Running == true {
-			time.Sleep(1*time.Second)
-		} else {
-			break
-		}
-		now := time.Now().Unix()
-		if now - timer > int64(self.judge_time_out) {
-			self.restartContainer(containerId)
-			return errors.New("change permission error")
-		}
-	}
-	return nil
+	return cli
 }
 
-func (self *JudgeServer) RunInContainer(containerId string) error{
-	self.judge_mutex.RLock()
-	client_info, ok := self.container_pool[containerId]
-	if !ok {
-		self.judge_mutex.RUnlock()
-		return errors.New("get container client error")
-	}
-	self.judge_mutex.RUnlock()
-	cli := client_info.client
-	ctx := context.Background()
-
-    respexecruncode,err := cli.ContainerExecCreate(ctx,containerId,types.ExecConfig{
-		Detach:false,
-        Cmd: []string{"sh","/tmp/do.sh"},
-    })
-    if err != nil {
-        fmt.Println(err)
-        return err
-    }
-	
-    resprunexecruncode,err := cli.ContainerExecAttach(ctx,respexecruncode.ID,types.ExecStartCheck{
-        Tty:false,
-		Detach: false,
-    })
-	defer resprunexecruncode.Close()
-    if err != nil {
-        fmt.Println(err)
-		return err
-    }
-	timer := time.Now().Unix()
-	for {
-		execInfo,err:= cli.ContainerExecInspect(ctx,respexecruncode.ID)
-		if err != nil {
-			return err
-		}
-		if execInfo.Running == true {
-			time.Sleep(1*time.Second)
-		} else {
-			break
-		}
-		now := time.Now().Unix()
-		if now - timer > int64(self.judge_time_out) {
-			self.restartContainer(containerId)
-			return errors.New("run code time out!")
-		}
-	}
-	return nil
+func (self *JudgeContainerManager) ComplieCodeInContainer(containerId string) error{
+	return self.ContainerExec(containerId,"sh","/tmp/complie.sh")
 }
 
-func (self *JudgeServer) checkContainerInspect(containerId string) bool{
-	self.judge_mutex.RLock()
-	client_info,_ := self.container_pool[containerId]
-	self.judge_mutex.RUnlock()
-	cli := client_info.client
+func (self *JudgeContainerManager) ChangePermission(containerId string,file_path string) error {
+	return self.ContainerExec(containerId,"chmod","777",file_path)
+}
+
+func (self *JudgeContainerManager) RunInContainer(containerId string) error{
+	return self.ContainerExec(containerId,"sh","/tmp/do.sh")
+}
+
+func (self *JudgeContainerManager) checkContainerInspect(containerId string) bool{
+	cli := self.getClientInfo(containerId)
 	ctx := context.Background()
 
 	inspect, err := cli.ContainerInspect(ctx,containerId) 
@@ -185,11 +85,8 @@ func (self *JudgeServer) checkContainerInspect(containerId string) bool{
 	return true
 }
 
-func (self *JudgeServer) restartContainer(containerId string) {
-	self.judge_mutex.RLock()
-	client_info,_ := self.container_pool[containerId]
-	self.judge_mutex.RUnlock()
-	cli := client_info.client
+func (self *JudgeContainerManager) restartContainer(containerId string) {
+	cli := self.getClientInfo(containerId)
 	ctx := context.Background()
 	
 	err := cli.ContainerRestart(ctx,containerId,nil)
@@ -198,11 +95,11 @@ func (self *JudgeServer) restartContainer(containerId string) {
 	}	
 }
 
-func (self *JudgeServer) JudgeOutput(containerId string) error{
+func (self *JudgeContainerManager) JudgeOutput(containerId string) error{
 	return nil
 }
 
-func (self *JudgeServer) CreateContainer(image_name string) (string,*client.Client){
+func (self *JudgeContainerManager) CreateContainer(image_name string) (string,*client.Client){
 	ctx := context.Background()
     cli, err := client.NewEnvClient()
     if err != nil {
@@ -227,18 +124,11 @@ func (self *JudgeServer) CreateContainer(image_name string) (string,*client.Clie
 	return resp.ID,cli
 }
 
-func (self *JudgeServer) SendToContainer(file_name, containerId string) error{
-	self.judge_mutex.RLock()
-	client_info, ok := self.container_pool[containerId]		
-	if !ok {
-		self.judge_mutex.RUnlock()
-		return errors.New("get container client error!")
-	}
-	self.judge_mutex.RUnlock()
-	cli := client_info.client
+func (self *JudgeContainerManager) SendToContainer(file_name, containerId string) error{
+	cli := self.getClientInfo(containerId)
 	ctx := context.Background()
  
-	filePath := self.tmp_path + "/" + containerId + "/" + file_name 
+	filePath := self.manager.tmp_path + "/" + containerId + "/" + file_name 
 	destPath := "/tmp/"
 	fmt.Println(filePath)
 	fmt.Println(destPath)
@@ -278,18 +168,11 @@ func (self *JudgeServer) SendToContainer(file_name, containerId string) error{
 }
 
 //copy out.txt from container 
-func (self *JudgeServer) CopyFromContainer(container_id,file_name string) error {
+func (self *JudgeContainerManager) CopyFromContainer(container_id,file_name string) error {
 	file_path := "/tmp/" + file_name
-	dest_path := self.tmp_path+"/"+container_id+"/"+file_name
+	dest_path := self.manager.tmp_path+"/"+container_id+"/"+file_name
 
-	self.judge_mutex.RLock()
-	client_info, ok := self.container_pool[container_id]		
-	if !ok {
-		self.judge_mutex.RUnlock()
-		return errors.New("get container client error!")
-	}
-	self.judge_mutex.RUnlock()
-	cli := client_info.client
+	cli := self.getClientInfo(container_id)
 	ctx := context.Background()
 
 	fmt.Println(file_path)
@@ -300,11 +183,6 @@ func (self *JudgeServer) CopyFromContainer(container_id,file_name string) error 
 	}
     defer returnoutput.Close()
 	fmt.Println(out)
-	//if file_name == "ce.txt" {
-	//	if out.Size == 0 {
-	//		return nil
-	//	}
-	//}
 	file,err2 := os.Create(dest_path)
 	if err2 != nil {
 		fmt.Println(err2)
@@ -334,52 +212,54 @@ func (self *JudgeServer) CopyFromContainer(container_id,file_name string) error 
 	return nil
 }
 
-func (self *JudgeServer) DelFileInContainer(containerId string) error{
-	self.judge_mutex.RLock()
-	client_info, ok := self.container_pool[containerId]	
-	if !ok {
-		self.judge_mutex.RUnlock()
-		return errors.New("get container client error!")
-	}
-	self.judge_mutex.RUnlock()
-	cli := client_info.client
-	ctx := context.Background()
- 
-    respexec,err := cli.ContainerExecCreate(ctx,containerId,types.ExecConfig{
-        Cmd: []string{"rm","/tmp/input.txt /tmp/output.txt /tmp/code.cpp"},
+func (self *JudgeContainerManager) DelFileInContainer(containerId string) error{
+	return self.ContainerExec(containerId,"rm","/tmp/input.txt","/tmp/output.txt","/tmp/code.cpp")
+}
+
+func (self *JudgeContainerManager) ContainerExec(containerId string, cmd ...string) error {
+    cli := self.getClientInfo(containerId)
+    if cli == nil {
+        return errors.New("get container client error!")
+    }
+    ctx := context.Background()
+
+	container_exec_create, err := cli.ContainerExecCreate(ctx,containerId,types.ExecConfig{
+		Cmd: cmd,
 		User: "root",
 		Detach:false,
-    })
+	})
 
-    if err != nil {
-        return err
-    }
-
-    respexecruncode,err1 := cli.ContainerExecAttach(ctx,respexec.ID,types.ExecStartCheck{
-        Tty:false,
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	
+	container_exec_attach, err := cli.ContainerExecAttach(ctx,container_exec_create.ID,types.ExecStartCheck{
+		Tty:false,
 		Detach:false,
-		
-    })
-	defer respexecruncode.Close()
-    if err1 != nil {
-        fmt.Println(err1)
-		return err1
-    }
-
+	})
+	defer container_exec_attach.Close()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	
 	timer := time.Now().Unix()
 	for {
-		execInfo,err:= cli.ContainerExecInspect(ctx,respexec.ID)
+		exec_info,err:= cli.ContainerExecInspect(ctx,container_exec_create.ID)
 		if err != nil {
+			fmt.Println(err)
 			return err
 		}
-		if execInfo.Running == true {
+		if exec_info.Running == true {
 			time.Sleep(1*time.Second)
 		} else {
 			break
 		}
 		now := time.Now().Unix()
-		if now - timer > int64(self.judge_time_out) {
-			return errors.New("remove file error")
+		if now - timer > int64(self.manager.judge_time_out) {
+			fmt.Println("ContainerExec time out!")
+			return errors.New("ContainerExec time out!")
 		}
 	}
 	return nil

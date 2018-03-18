@@ -8,7 +8,32 @@ import (
 	"io/ioutil"
 )
 
-func (self *JudgeServer) CreateFile(message,container_id,file_name string) error{
+type JudgeFileManager struct {
+	manager *JudgeServer
+	tmp_path string
+	input_path string
+}
+
+func (self *JudgeFileManager) Init() { 
+	for containerId,_ := range self.manager.container_pool {
+		tmp_path := self.tmp_path + "/"+containerId
+        err := os.MkdirAll(tmp_path,0777)
+        if err != nil {
+            fmt.Println("create tmp_path error!")
+            return
+        } 
+	}
+}
+
+func (self *JudgeFileManager) SetTmpPath(path string) {
+    self.tmp_path = path
+}
+
+func (self *JudgeFileManager) SetInputPath(path string) {
+    self.input_path = path
+}
+
+func (self *JudgeFileManager) CreateFile(message,container_id,file_name string) error{
 	file,err := os.Create(self.tmp_path+"/"+container_id+"/"+file_name)
 	defer file.Close()
 	if err != nil {
@@ -21,7 +46,7 @@ func (self *JudgeServer) CreateFile(message,container_id,file_name string) error
 	return nil	
 }
 
-func (self *JudgeServer) CopyFile(container_id string, pid int,file_name string) error{
+func (self *JudgeFileManager) CopyFile(container_id string, pid int,file_name string) error{
 	file,err := os.Open(self.input_path+"/"+strconv.Itoa(pid)+"/"+file_name)
 	defer file.Close()
 	if err != nil {
@@ -38,7 +63,7 @@ func (self *JudgeServer) CopyFile(container_id string, pid int,file_name string)
 	return err3
 }
 
-func (self *JudgeServer) DelFile(container_id string) {
+func (self *JudgeFileManager) DelFile(container_id string) {
 	file_path := self.tmp_path + "/" + container_id + "/"
     dir_list, err := ioutil.ReadDir(file_path)
     if err != nil {

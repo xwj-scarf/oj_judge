@@ -8,7 +8,7 @@ import (
 )
 
 type judgeMysql struct {
-	Manager   *JudgeServer
+	manager   *JudgeServer
 	db        *sql.DB
 	mysqlInfo MysqlInfo
 }

@@ -14,7 +14,7 @@ import (
 )
 
 type JudgeWorker struct {
-	Manager *JudgeServer
+	manager *JudgeServer
 }
 
 func (self *JudgeWorker) Run() {
@@ -29,13 +29,13 @@ func (self *JudgeWorker) Run() {
 
 func (self *JudgeWorker) checkContainerHealth() {
 	for {
-		self.Manager.judge_mutex.RLock()
-		for k,_ := range self.Manager.container_pool {
-			if !self.Manager.checkContainerInspect(k) {
-				self.Manager.restartContainer(k)
+		self.manager.judge_mutex.RLock()
+		for k,_ := range self.manager.container_pool {
+			if !self.manager.checkContainerInspect(k) {
+				self.manager.restartContainer(k)
 			}			
 		}
-		self.Manager.judge_mutex.RUnlock()
+		self.manager.judge_mutex.RUnlock()
 		time.Sleep(10*time.Second)
 	}
 }
@@ -44,16 +44,16 @@ func (self *JudgeWorker) GetTask() {
 	for {
 		is_idle := 0
 		var idle_container_id  []string
-		self.Manager.judge_mutex.RLock()
-		for k,v := range self.Manager.container_pool{
+		self.manager.judge_mutex.RLock()
+		for k,v := range self.manager.container_pool{
 			if v.is_work == false {
 				is_idle = is_idle + 1
 				idle_container_id = append(idle_container_id,k)
 			}
 		}
-		self.Manager.judge_mutex.RUnlock()	
+		self.manager.judge_mutex.RUnlock()	
 		//from redis get is_idle task
-		to_do := self.Manager.GetRedisTask(is_idle)
+		to_do := self.manager.GetRedisTask(is_idle)
 
 		for k,v := range to_do {
 			go self.Assign(v,idle_container_id[k])
@@ -65,120 +65,120 @@ func (self *JudgeWorker) GetTask() {
 
 func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	defer func (container_id string) {
-		self.Manager.DelFile(container_id)
-		self.Manager.DelFileInContainer(container_id)
-		self.Manager.judge_mutex.Lock()
-		self.Manager.container_pool[container_id].is_work = false
-		self.Manager.judge_mutex.Unlock()
+		self.manager.DelFile(container_id)
+		self.manager.DelFileInContainer(container_id)
+		self.manager.judge_mutex.Lock()
+		self.manager.container_pool[container_id].is_work = false
+		self.manager.judge_mutex.Unlock()
 
 	}(container_id)
 
-	self.Manager.judge_mutex.Lock()
-	self.Manager.container_pool[container_id].is_work = true
-	self.Manager.judge_mutex.Unlock()
+	self.manager.judge_mutex.Lock()
+	self.manager.container_pool[container_id].is_work = true
+	self.manager.judge_mutex.Unlock()
 
 	//create code.cpp
-	err := self.Manager.CreateFile(taskinfo.Code,container_id,"code.cpp")
+	err := self.manager.CreateFile(taskinfo.Code,container_id,"code.cpp")
 	if err != nil {
 		fmt.Println("create code file error!")
 		return
 	}
 
 	//copy input.txt
-	err = self.Manager.CopyFile(container_id,taskinfo.Pid,"input.txt")
+	err = self.manager.CopyFile(container_id,taskinfo.Pid,"input.txt")
 	if err != nil {
 		fmt.Println("copy input file error!")
 		return
 	}
 	
 	//copy output.txt
-	err = self.Manager.CopyFile(container_id,taskinfo.Pid,"output.txt")
+	err = self.manager.CopyFile(container_id,taskinfo.Pid,"output.txt")
 	if err != nil {
 		fmt.Println("copy output file error!")
 		return
 	}
 
 	//send code to container
-	err = self.Manager.SendToContainer("code.cpp" ,container_id)
+	err = self.manager.SendToContainer("code.cpp" ,container_id)
 	if err != nil {
 		fmt.Println("send code to container error!")
 		return
 	}
 
 	//send input to container
-	err = self.Manager.SendToContainer("input.txt" ,container_id)
+	err = self.manager.SendToContainer("input.txt" ,container_id)
 	if err != nil {
 		fmt.Println("send input to container error!")
-		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
+		self.manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
 
-	self.Manager.ChangePermission(container_id,"/tmp/code.cpp")
-	self.Manager.ChangePermission(container_id,"/tmp/input.txt")
+	self.manager.ChangePermission(container_id,"/tmp/code.cpp")
+	self.manager.ChangePermission(container_id,"/tmp/input.txt")
 
 	//complie code in container
-	err = self.Manager.ComplieCodeInContainer(container_id) 
+	err = self.manager.ComplieCodeInContainer(container_id) 
 	if err != nil {
 		fmt.Println("complie code in container error!")
-		self.Manager.mysql.MarkUserCe(taskinfo.Sid,taskinfo.Cid)
+		self.manager.mysql.MarkUserCe(taskinfo.Sid,taskinfo.Cid)
 		//TODO   Write to Mysql  mark failed times+1 
 		return
 	 }
 
-	self.Manager.ChangePermission(container_id,"/tmp/code")
+	self.manager.ChangePermission(container_id,"/tmp/code")
 
-	err = self.Manager.CopyFromContainer(container_id,"ce.txt")
+	err = self.manager.CopyFromContainer(container_id,"ce.txt")
 	if err != nil {
 		fmt.Println("copy from container error!")
-		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
+		self.manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
 
 	err = self.JudgeIsCe(container_id) 
 	if err != nil {
 		fmt.Println("code is ce!")
-		self.Manager.mysql.MarkUserCe(taskinfo.Sid,taskinfo.Cid)
+		self.manager.mysql.MarkUserCe(taskinfo.Sid,taskinfo.Cid)
 		//mark
 		return
 	}
 
 	//run code in container
-	err = self.Manager.RunInContainer(container_id) 
+	err = self.manager.RunInContainer(container_id) 
 	if err != nil {
 		fmt.Println("run code in container error!")
-		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
+		self.manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		//TODO   Write to Mysql  mark re times+1 
 		return
 	 }
 
 	//copy is_runtime_error.txt in container
-	err = self.Manager.CopyFromContainer(container_id,"runtime.txt")
+	err = self.manager.CopyFromContainer(container_id,"runtime.txt")
 	if err != nil {
 		fmt.Println("copy runtime.txt from container error")
-		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
+		self.manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
 
 	err = self.JudgeIsRunTimeError(container_id)
 	if err != nil {
 		fmt.Println(err)
-		self.Manager.mysql.MarkUserRe(taskinfo.Sid,taskinfo.Cid)
+		self.manager.mysql.MarkUserRe(taskinfo.Sid,taskinfo.Cid)
 		return	
 	}
 
 	//copy time and memory use in container
-	err = self.Manager.CopyFromContainer(container_id,"time.txt")
+	err = self.manager.CopyFromContainer(container_id,"time.txt")
 	if err != nil {
 		fmt.Println("copy time.txt from container error")
-		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
+		self.manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
 
-	err = self.Manager.CopyFromContainer(container_id,"m.txt")
+	err = self.manager.CopyFromContainer(container_id,"m.txt")
 	if err != nil {
 		fmt.Println(err)
 		fmt.Println("copy mem.txt from container error")
-		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
+		self.manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
 
@@ -186,7 +186,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	use_time,use_memory,is_tleormle,err3 := self.JudgeIsTimeOutAndMemoryOut(container_id,taskinfo.Pid,taskinfo.Sid,taskinfo.Cid)
 	if err3 != nil {
 		fmt.Println(err3)
-		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
+		self.manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
 	
@@ -195,10 +195,10 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	}
 
 	//copy output from container
-	err = self.Manager.CopyFromContainer(container_id,"output.txt")
+	err = self.manager.CopyFromContainer(container_id,"output.txt")
 	if err != nil {
 		fmt.Println("copy output.txt from container error")
-		self.Manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
+		self.manager.mysql.MarkError(taskinfo.Sid,taskinfo.Cid)
 		return
 	}
 
@@ -206,16 +206,16 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.JudgeIsAc(container_id,taskinfo.Pid)
 	if err != nil {
 		fmt.Println("judge output error!")
-		self.Manager.mysql.MarkUserWa(taskinfo.Sid,use_time,use_memory,taskinfo.Cid)
+		self.manager.mysql.MarkUserWa(taskinfo.Sid,use_time,use_memory,taskinfo.Cid)
 		//TODO   Write to Mysql  mark wa times+1 
 		return
 	 }
-	self.Manager.mysql.MarkUserAc(taskinfo.Sid,use_time,use_memory,taskinfo.Cid)
+	self.manager.mysql.MarkUserAc(taskinfo.Sid,use_time,use_memory,taskinfo.Cid)
 }
 
 func (self *JudgeWorker) JudgeIsAc(container_id string,pid int) error {
-	container_output_path := self.Manager.tmp_path + "/" + container_id + "/" + "output.txt"
-	standard_output_path := self.Manager.input_path + "/" + strconv.Itoa(pid) + "/" + "output.txt"
+	container_output_path := self.manager.tmp_path + "/" + container_id + "/" + "output.txt"
+	standard_output_path := self.manager.input_path + "/" + strconv.Itoa(pid) + "/" + "output.txt"
 	
 	container_output,err:= os.Open(container_output_path)
 	if err != nil {
@@ -251,7 +251,7 @@ func (self *JudgeWorker) JudgeIsAc(container_id string,pid int) error {
 }
 
 func (self *JudgeWorker) JudgeIsRunTimeError(container_id string) error {
-	dest_path := self.Manager.tmp_path + "/" + container_id + "/" + "runtime.txt"
+	dest_path := self.manager.tmp_path + "/" + container_id + "/" + "runtime.txt"
 
 	fileInfo, err := os.Stat(dest_path)
 	if err != nil {
@@ -277,13 +277,13 @@ func (self *JudgeWorker) JudgeIsRunTimeError(container_id string) error {
 }
 
 func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid int,cid int) (int,int,bool,error) {
-	time_limit,mem_limit,err:= self.Manager.mysql.GetTimeAndMemoryLimit(pid)
+	time_limit,mem_limit,err:= self.manager.mysql.GetTimeAndMemoryLimit(pid)
 	if err != nil {
 		fmt.Println("get time and memory limit error!")
 		return 0,0,false,errors.New("get time and memory limit error")
 	}
 
-	dest_time_path := self.Manager.tmp_path + "/" + container_id + "/" + "time.txt"
+	dest_time_path := self.manager.tmp_path + "/" + container_id + "/" + "time.txt"
 	b,err1 := ioutil.ReadFile(dest_time_path)
 
 	if err1 != nil {
@@ -302,11 +302,11 @@ func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid 
 
 	if use_time > time_limit {
 		fmt.Println("time limit!")
-		self.Manager.mysql.MarkTle(time_limit,sid,cid)
+		self.manager.mysql.MarkTle(time_limit,sid,cid)
 		return time_limit,0,true,nil
 	}
 
-	dest_mem_path := self.Manager.tmp_path + "/" + container_id + "/" + "m.txt"
+	dest_mem_path := self.manager.tmp_path + "/" + container_id + "/" + "m.txt"
 	b, err1 = ioutil.ReadFile(dest_mem_path)
 	if err1 != nil {
 		fmt.Println(err1)
@@ -318,7 +318,7 @@ func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid 
 
 	if use_memory > mem_limit {
 		fmt.Println("memory limit!")
-		self.Manager.mysql.MarkMle(mem_limit,sid,cid)
+		self.manager.mysql.MarkMle(mem_limit,sid,cid)
 		return 0,mem_limit,true,nil
 	}
 	return use_time,use_memory,false,nil
@@ -326,7 +326,7 @@ func (self *JudgeWorker) JudgeIsTimeOutAndMemoryOut(container_id string,pid,sid 
 }
 
 func (self *JudgeWorker) JudgeIsCe(container_id string)error{
-	dest_path := self.Manager.tmp_path+"/"+container_id+"/"+"ce.txt"
+	dest_path := self.manager.tmp_path+"/"+container_id+"/"+"ce.txt"
 	fileInfo, err := os.Stat(dest_path)
 	if err != nil {
 		fmt.Println(err)
