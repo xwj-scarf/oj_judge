@@ -68,7 +68,7 @@ func insert_to_redis(op int) {
                   int main(){
                     int a,b;
                     while(scanf("%d%d",&a,&b)!=EOF) {
-                        printf("%d\n",a+b);
+                        printf("%d %d\n",a+1,b+1);
                     }               
 				}`
 	} 
