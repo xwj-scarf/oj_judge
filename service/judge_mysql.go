@@ -32,55 +32,6 @@ func (self *judgeMysql) Stop() {
 	self.db.Close()
 }
 
-func (self *judgeMysql) MarkUserAc(sid int, use_time, use_memory int, cid int) {
-	now := time.Now().Unix()
-	var stmt *sql.Stmt
-	var err error
-	if cid <= 0 {
-		stmt, err = self.db.Prepare(`update submit_info a inner join problem_info b on a.pid = b.pid set a.status = ?,a.time_use = ?, a.memory_use = ?, a.update_time = ?, b.ac_num = b.ac_num + 1 where a.id = ?`)
-	} else {
-		stmt, err = self.db.Prepare(`update contest_submit_info a inner join contest_problem_info b on a.pid = b.show_pid set a.status = ?,a.time_use = ?, a.memory_use = ?, a.update_time = ?, b.ac_num = b.ac_num + 1 where a.id = ? and b.contest_id = ?`)
-	}
-	defer stmt.Close()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	if cid <= 0 {
-		res, err := stmt.Exec(6, use_time, use_memory, now, sid)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		num, err := res.RowsAffected()
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		if num <= 0 {
-			fmt.Println("update error")
-			return
-		}
-	} else {
-
-		res, err := stmt.Exec(6, use_time, use_memory, now, sid, cid)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		num, err := res.RowsAffected()
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		if num <= 0 {
-			fmt.Println("update error")
-			return
-		}
-	}
-}
-
 func (self *judgeMysql) MarkUserStatus(mem_use,time_use,sid,cid,uid,status int) {
 	if cid <= 0 {
 		self.MarkNormalStatus(mem_use,time_use,sid,cid,uid,status)
@@ -125,9 +76,6 @@ func (self *judgeMysql) UpdateUserStatistic(uid,status int, tx *sql.Tx) bool{
 
 	columes := self.GetColumes(status)
 	SQL := "update user_statistic set " + columes + " = " + columes + " + 1 where uid = ? and is_contest = 0"
-	//SQL := "update user_statistic set ? = ? + 1 where uid = ? and is_contest = 0"
-	//args = append(args,columes)
-	//args = append(args,columes)
 	args = append(args,uid)
 	
 	return self.UpdateData(tx,SQL,args)
@@ -169,9 +117,6 @@ func (self *judgeMysql) UpdateContestUserStatistic(uid,status int, tx *sql.Tx) b
 
 	columes := self.GetColumes(status)
 	SQL := "update user_statistic set " + columes + " = " + columes + " + 1 where uid = ? and is_contest = 1"
-	//SQL := "update user_statistic set ? = ? + 1 where uid = ? and is_contest = 1"
-	//args = append(args,columes)
-	//args = append(args,columes)
 	args = append(args,uid)
 	
 	return self.UpdateData(tx,SQL,args)
