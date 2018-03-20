@@ -32,66 +32,6 @@ func (self *judgeMysql) Stop() {
 	self.db.Close()
 }
 
-func (self *judgeMysql) MarkUserCe(sid int, cid int) {
-	now := time.Now().Unix()
-	var stmt *sql.Stmt
-	var err error
-	if cid <= 0 {
-		stmt, err = self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`)
-	} else {
-		stmt, err = self.db.Prepare(`update contest_submit_info set status = ?,update_time = ? where id = ?`)
-	}
-	defer stmt.Close()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	res, err := stmt.Exec(1, now, sid)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	num, err := res.RowsAffected()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	if num <= 0 {
-		fmt.Println("update error")
-		return
-	}
-}
-
-func (self *judgeMysql) MarkUserRe(sid int, cid int) {
-	now := time.Now().Unix()
-	var stmt *sql.Stmt
-	var err error
-	if cid <= 0 {
-		stmt, err = self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`)
-	} else {
-		stmt, err = self.db.Prepare(`update contest_submit_info set status = ?,update_time = ? where id = ?`)
-	}
-	defer stmt.Close()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	res, err := stmt.Exec(5, now, sid)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	num, err := res.RowsAffected()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	if num <= 0 {
-		fmt.Println("update error")
-		return
-	}
-}
-
 func (self *judgeMysql) MarkUserAc(sid int, use_time, use_memory int, cid int) {
 	now := time.Now().Unix()
 	var stmt *sql.Stmt
@@ -141,126 +81,108 @@ func (self *judgeMysql) MarkUserAc(sid int, use_time, use_memory int, cid int) {
 	}
 }
 
-func (self *judgeMysql) MarkUserWa(sid int, use_time, use_memory int, cid int) {
-	now := time.Now().Unix()
-	var stmt *sql.Stmt
-	var err error
+func (self *judgeMysql) MarkUserStatus(mem_use,time_use,sid,cid,uid,status int) {
 	if cid <= 0 {
-		stmt, err = self.db.Prepare(`update submit_info set status = ?,time_use = ?, memory_use = ?, update_time = ? where id = ?`)
+		self.MarkNormalStatus(mem_use,time_use,sid,cid,uid,status)
 	} else {
-		stmt, err = self.db.Prepare(`update contest_submit_info set status = ?,time_use = ?, memory_use = ?,update_time = ? where id = ?`)
-	}
-	defer stmt.Close()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	res, err := stmt.Exec(2, use_time, use_memory, now, sid)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	num, err := res.RowsAffected()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	if num <= 0 {
-		fmt.Println("update error")
-		return
-	}
-
-}
-
-func (self *judgeMysql) MarkError(sid int, cid int) {
-	now := time.Now().Unix()
-	var stmt *sql.Stmt
-	var err error
-	if cid <= 0 {
-		stmt, err = self.db.Prepare(`update submit_info set status = ?, update_time = ? where id = ?`)
-	} else {
-		stmt, err = self.db.Prepare(`update contest_submit_info set status = ?,update_time = ? where id = ?`)
-	}
-	defer stmt.Close()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	res, err := stmt.Exec(404, now, sid)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	num, err := res.RowsAffected()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	if num <= 0 {
-		fmt.Println("update error")
-		return
+		self.MarkContestStatus(mem_use,time_use,sid,cid,uid,status)
 	}
 }
 
-func (self *judgeMysql) MarkTle(time_use, sid int, cid int) {
-	now := time.Now().Unix()
-
-	var stmt *sql.Stmt
-	var err error
-	if cid <= 0 {
-		stmt, err = self.db.Prepare(`update submit_info set time_use = ? ,status = ?, update_time = ? where id = ?`)
-	} else {
-		stmt, err = self.db.Prepare(`update contest_submit_info set time_use = ? ,status = ?, update_time = ? where id = ?`)
-	}
-	defer stmt.Close()
+func (self *judgeMysql) MarkNormalStatus(mem_use,time_use,sid,cid,uid,status int) {
+	tx, err := self.db.Begin()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	res, err := stmt.Exec(time_use, 3, now, sid)
-	if err != nil {
-		fmt.Println(err)
+	if !self.UpdateSubmitInfo(mem_use,time_use,sid,cid,uid,status,tx) || !self.UpdateUserStatistic(uid,status,tx) {
+		fmt.Println("update error!")
+		tx.Rollback()
 		return
 	}
-	num, err := res.RowsAffected()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	if num <= 0 {
-		fmt.Println("update error")
-		return
-	}
+	tx.Commit()
 }
 
-func (self *judgeMysql) MarkMle(mem_use, sid int, cid int) {
+func (self *judgeMysql) UpdateSubmitInfo(mem_use,time_use,sid,cid,uid,status int,tx *sql.Tx) bool{
 	now := time.Now().Unix()
-	var stmt *sql.Stmt
-	var err error
-	if cid <= 0 {
-		stmt, err = self.db.Prepare(`update submit_info set memory_use = ?,status = ?, update_time = ? where id = ?`)
-	} else {
-		stmt, err = self.db.Prepare(`update contest_submit_info set memory_use = ?,status = ?, update_time = ? where id = ?`)
-	}
-	defer stmt.Close()
+	SQL := "update submit_info set memory_use = ?, time_use = ?, status = ?, update_time = ? where id = ?"
+	var args []interface{}
+	args = append(args,mem_use)
+	args = append(args,time_use)
+	args = append(args,status)
+	args = append(args,now)
+	args = append(args,sid)
+	return self.UpdateData(tx,SQL,args)
+}
+
+func (self *judgeMysql) UpdateUserStatistic(uid,status int, tx *sql.Tx) bool{
+	var args []interface{}
+
+	columes := self.GetColumes(status)
+	SQL := "update user_statistic set ? = ? + 1 where uid = ?"
+	args = append(args,columes)
+	args = append(args,columes)
+	args = append(args,uid)
+	
+	return self.UpdateData(tx,SQL,args)
+}
+
+func (self *judgeMysql) MarkContestStatus(mem_use,time_use,sid,cid,uid,status int) {
+	tx, err := self.db.Begin()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	res, err := stmt.Exec(mem_use, 4, now, sid)
-	if err != nil {
-		fmt.Println(err)
+	if !self.UpdateContestSubmitInfo(mem_use,time_use,sid,cid,uid,status,tx) || !self.UpdateContestUserStatistic(uid,status,tx) {
+		fmt.Println("update error!")
+		tx.Rollback()
 		return
 	}
-	num, err := res.RowsAffected()
-	if err != nil {
-		fmt.Println(err)
-		return
+	tx.Commit()
+}
+
+func (self *judgeMysql) UpdateContestSubmitInfo(mem_use,time_use,sid,cid,uid,status int,tx *sql.Tx) bool{
+	now := time.Now().Unix()
+	SQL := "update contest_submit_info set memory_use = ?, time_use = ?, status = ?, update_time = ? where id = ?"
+	var args []interface{}
+	args = append(args,mem_use)
+	args = append(args,time_use)
+	args = append(args,status)
+	args = append(args,now)
+	args = append(args,sid)
+	return self.UpdateData(tx,SQL,args)
+}
+
+func (self *judgeMysql) UpdateContestUserStatistic(uid,status int, tx *sql.Tx) bool{
+	var args []interface{}
+
+	columes := self.GetColumes(status)
+	SQL := "update user_statistic set ? = ? + 1 where uid = ? and is_contest = 1"
+	args = append(args,columes)
+	args = append(args,columes)
+	args = append(args,uid)
+	
+	return self.UpdateData(tx,SQL,args)
+}
+
+func (self *judgeMysql) GetColumes(status int) string {
+	switch status {
+		case Ce:
+			return "ce_count"
+		case Ac:
+			return "ac_count"
+		case Wa:
+			return "wa_count"
+		case Re:
+			return "re_count"
+		case Tle:
+			return "tle_count"
+		case Mle:
+			return "mle_count"
+		default:
+			return "other_count" 
 	}
-	if num <= 0 {
-		fmt.Println("update error")
-		return
-	}
+	return "other_count"
 }
 
 func (self *judgeMysql) GetTimeAndMemoryLimit(pid int) (int, int, error) {
@@ -281,4 +203,28 @@ func (self *judgeMysql) GetTimeAndMemoryLimit(pid int) (int, int, error) {
 		return 0, 0, err
 	}
 	return time_limit, memory_limit, nil
+}
+
+func (self *judgeMysql) UpdateData(tx *sql.Tx,SQL string, args ...interface{}) bool{
+	stmt, err := tx.Prepare(SQL)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	defer stmt.Close()
+	res,err := stmt.Exec(args)	
+	if err != nil {
+		fmt.Println(err)
+		return false 
+	}
+	num,err := res.RowsAffected()
+	if err != nil {
+		fmt.Println(err)
+		return false 
+	}
+	if num <= 0 {
+		fmt.Println("update error!")
+		return false
+	}
+	return true 
 }

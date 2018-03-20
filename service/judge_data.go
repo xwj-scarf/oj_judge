@@ -27,3 +27,14 @@ type SubmitInfo struct {
 	Uid int		//user id
 	Cid int		//contest id
 }
+
+const (
+	Judging = 0
+	Ce = 1
+	Wa = 2
+	Tle = 3
+	Mle = 4
+	Re = 5
+    Ac = 6
+	Error = 404
+)
