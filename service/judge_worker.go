@@ -136,7 +136,7 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	err = self.JudgeIsCe(container_id) 
 	if err != nil {
 		fmt.Println("code is ce!")
-		self.manager.mysql.MarkUserStatus(0,0,taskinfo.Sid,taskinfo.Cid,taskinfo.Uid,Error)
+		self.manager.mysql.MarkUserStatus(0,0,taskinfo.Sid,taskinfo.Cid,taskinfo.Uid,Ce)
 		return
 	}
 

@@ -105,7 +105,12 @@ func (self *judgeMysql) MarkNormalStatus(mem_use,time_use,sid,cid,uid,status int
 
 func (self *judgeMysql) UpdateSubmitInfo(mem_use,time_use,sid,cid,uid,status int,tx *sql.Tx) bool{
 	now := time.Now().Unix()
-	SQL := "update submit_info set memory_use = ?, time_use = ?, status = ?, update_time = ? where id = ?"
+	var SQL string
+	if status != Ac {
+		SQL = "update submit_info set memory_use = ?, time_use = ?, status = ?, update_time = ? where id = ?" 
+	} else {
+		SQL = "update submit_info a inner join problem_info b on a.pid = b.pid set a.memory_use = ?,a.time_use = ?, a.status = ?, a.update_time = ?, b.ac_num = b.ac_num + 1 where a.id = ?"
+	}
 	var args []interface{}
 	args = append(args,mem_use)
 	args = append(args,time_use)
@@ -119,9 +124,10 @@ func (self *judgeMysql) UpdateUserStatistic(uid,status int, tx *sql.Tx) bool{
 	var args []interface{}
 
 	columes := self.GetColumes(status)
-	SQL := "update user_statistic set ? = ? + 1 where uid = ?"
-	args = append(args,columes)
-	args = append(args,columes)
+	SQL := "update user_statistic set " + columes + " = " + columes + " + 1 where uid = ? and is_contest = 0"
+	//SQL := "update user_statistic set ? = ? + 1 where uid = ? and is_contest = 0"
+	//args = append(args,columes)
+	//args = append(args,columes)
 	args = append(args,uid)
 	
 	return self.UpdateData(tx,SQL,args)
@@ -143,7 +149,12 @@ func (self *judgeMysql) MarkContestStatus(mem_use,time_use,sid,cid,uid,status in
 
 func (self *judgeMysql) UpdateContestSubmitInfo(mem_use,time_use,sid,cid,uid,status int,tx *sql.Tx) bool{
 	now := time.Now().Unix()
-	SQL := "update contest_submit_info set memory_use = ?, time_use = ?, status = ?, update_time = ? where id = ?"
+	var SQL string
+	if status != Ac {
+		SQL = "update contest_submit_info set memory_use = ?, time_use = ?, status = ?, update_time = ? where id = ?"
+	} else {
+		SQL = "update contest_submit_info a inner join contest_problem_info b on a.pid = b.show_pid set a.status = ?,a.time_use = ?, a.memory_use = ?, a.update_time = ?, b.ac_num = b.ac_num + 1 where a.id = ? and b.contest_id = ?"
+	}
 	var args []interface{}
 	args = append(args,mem_use)
 	args = append(args,time_use)
@@ -157,9 +168,10 @@ func (self *judgeMysql) UpdateContestUserStatistic(uid,status int, tx *sql.Tx) b
 	var args []interface{}
 
 	columes := self.GetColumes(status)
-	SQL := "update user_statistic set ? = ? + 1 where uid = ? and is_contest = 1"
-	args = append(args,columes)
-	args = append(args,columes)
+	SQL := "update user_statistic set " + columes + " = " + columes + " + 1 where uid = ? and is_contest = 1"
+	//SQL := "update user_statistic set ? = ? + 1 where uid = ? and is_contest = 1"
+	//args = append(args,columes)
+	//args = append(args,columes)
 	args = append(args,uid)
 	
 	return self.UpdateData(tx,SQL,args)
@@ -205,14 +217,14 @@ func (self *judgeMysql) GetTimeAndMemoryLimit(pid int) (int, int, error) {
 	return time_limit, memory_limit, nil
 }
 
-func (self *judgeMysql) UpdateData(tx *sql.Tx,SQL string, args ...interface{}) bool{
+func (self *judgeMysql) UpdateData(tx *sql.Tx,SQL string, args []interface{}) bool{
 	stmt, err := tx.Prepare(SQL)
 	if err != nil {
 		fmt.Println(err)
 		return false
 	}
 	defer stmt.Close()
-	res,err := stmt.Exec(args)	
+	res,err := stmt.Exec(args...)	
 	if err != nil {
 		fmt.Println(err)
 		return false 
