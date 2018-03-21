@@ -101,7 +101,7 @@ func (self *judgeMysql) UpdateContestSubmitInfo(mem_use,time_use,sid,cid,uid,sta
 	if status != Ac {
 		SQL = "update contest_submit_info set memory_use = ?, time_use = ?, status = ?, update_time = ? where id = ?"
 	} else {
-		SQL = "update contest_submit_info a inner join contest_problem_info b on a.pid = b.show_pid set a.status = ?,a.time_use = ?, a.memory_use = ?, a.update_time = ?, b.ac_num = b.ac_num + 1 where a.id = ? and b.contest_id = ?"
+		SQL = "update contest_submit_info a inner join contest_problem_info b on a.pid = b.show_pid set a.memory_use = ?,a.time_use = ?, a.status = ?, a.update_time = ?, b.ac_num = b.ac_num + 1 where a.id = ? and b.contest_id = ?"
 	}
 	var args []interface{}
 	args = append(args,mem_use)
@@ -109,6 +109,9 @@ func (self *judgeMysql) UpdateContestSubmitInfo(mem_use,time_use,sid,cid,uid,sta
 	args = append(args,status)
 	args = append(args,now)
 	args = append(args,sid)
+	if status == Ac {
+		args = append(args,cid)
+	}
 	return self.UpdateData(tx,SQL,args)
 }
 
