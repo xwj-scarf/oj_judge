@@ -53,20 +53,19 @@ func (self *JudgeContainerManager) getClientInfo(containerId string) *client.Cli
 		fmt.Println("get container client error!")
 		return nil
 	}
-	cli := client_info.client
-	return cli
+	return client_info.client
 }
 
 func (self *JudgeContainerManager) ComplieCodeInContainer(containerId string) error{
-	return self.ContainerExec(containerId,"sh","/tmp/complie.sh")
+	return self.ContainerExec(containerId,"docker","sh","/tmp/complie.sh")
 }
 
 func (self *JudgeContainerManager) ChangePermission(containerId string,file_path string) error {
-	return self.ContainerExec(containerId,"chmod","777",file_path)
+	return self.ContainerExec(containerId,"root","chmod","777",file_path)
 }
 
 func (self *JudgeContainerManager) RunInContainer(containerId string) error{
-	return self.ContainerExec(containerId,"sh","/tmp/do.sh")
+	return self.ContainerExec(containerId,"docker","sh","/tmp/do.sh")
 }
 
 func (self *JudgeContainerManager) checkContainerInspect(containerId string) bool{
@@ -213,10 +212,10 @@ func (self *JudgeContainerManager) CopyFromContainer(container_id,file_name stri
 }
 
 func (self *JudgeContainerManager) DelFileInContainer(containerId string) error{
-	return self.ContainerExec(containerId,"rm","/tmp/input.txt","/tmp/output.txt","/tmp/code.cpp")
+	return self.ContainerExec(containerId,"root","rm","/tmp/input.txt","/tmp/output.txt","/tmp/code.cpp")
 }
 
-func (self *JudgeContainerManager) ContainerExec(containerId string, cmd ...string) error {
+func (self *JudgeContainerManager) ContainerExec(containerId string, user string,cmd ...string) error {
     cli := self.getClientInfo(containerId)
     if cli == nil {
         return errors.New("get container client error!")
@@ -225,7 +224,7 @@ func (self *JudgeContainerManager) ContainerExec(containerId string, cmd ...stri
 
 	container_exec_create, err := cli.ContainerExecCreate(ctx,containerId,types.ExecConfig{
 		Cmd: cmd,
-		User: "root",
+		User: user,
 		Detach:false,
 	})
 
