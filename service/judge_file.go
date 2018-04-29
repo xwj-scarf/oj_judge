@@ -34,6 +34,7 @@ func (self *JudgeFileManager) SetInputPath(path string) {
 }
 
 func (self *JudgeFileManager) CreateFile(message,container_id,file_name string) error{
+	fmt.Println("start create file")
 	file,err := os.Create(self.tmp_path+"/"+container_id+"/"+file_name)
 	defer file.Close()
 	if err != nil {

@@ -48,7 +48,7 @@ func main() {
 			insert_to_redis(op)
 		}
 		count  = count + 5
-		if count >= 500 {
+		if count >= 10 {
 			break
 		}
 		time.Sleep(1*time.Second)

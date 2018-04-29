@@ -106,13 +106,24 @@ func (self *JudgeContainerManager) CreateContainer(image_name string) (string,*c
     }
 
     imageName := image_name
+	host_config := &container.HostConfig {
+		//单位B
+		Resources : container.Resources{
+			Memory:500000000,
+			CPUCount:1,
+			MemorySwap:5000000000,         
+			MemoryReservation :500000000,
+			//KernelMemoryLimit :500000, 
+			//MemorySwap:-1, 
+		},	
+	}
     resp, err := cli.ContainerCreate(ctx, &container.Config{
         Image: imageName,
         Cmd: []string{"/bin/bash"},
         Tty: true,
         AttachStdout:true, 
         AttachStderr:true,
-     }, nil, nil, "")
+     }, host_config, nil, "")
 
     if err != nil {
         panic(err)

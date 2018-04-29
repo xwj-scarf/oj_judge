@@ -19,7 +19,7 @@ type JudgeWorker struct {
 
 func (self *JudgeWorker) Run() {
 	go self.GetTask()
-	go self.checkContainerHealth()
+	//go self.checkContainerHealth()
 	fmt.Println("run .......")
 
 	for {
@@ -73,17 +73,20 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 
 	}(container_id)
 
+	fmt.Println("start assign")
 	self.manager.judge_mutex.Lock()
 	self.manager.container_pool[container_id].is_work = true
 	self.manager.judge_mutex.Unlock()
 
 	//create code.cpp
+	fmt.Println(taskinfo)
 	err := self.manager.CreateFile(taskinfo.Code,container_id,"code.cpp")
 	if err != nil {
 		fmt.Println("create code file error!")
 		return
 	}
 
+	fmt.Println("create code.cpp done")
 	//copy input.txt
 	err = self.manager.CopyFile(container_id,taskinfo.Pid,"input.txt")
 	if err != nil {
