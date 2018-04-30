@@ -19,7 +19,7 @@ type JudgeWorker struct {
 
 func (self *JudgeWorker) Run() {
 	go self.GetTask()
-	//go self.checkContainerHealth()
+	go self.checkContainerHealth()
 	fmt.Println("run .......")
 
 	for {
@@ -29,13 +29,13 @@ func (self *JudgeWorker) Run() {
 
 func (self *JudgeWorker) checkContainerHealth() {
 	for {
-		self.manager.judge_mutex.RLock()
 		for k,_ := range self.manager.container_pool {
+			fmt.Println("start check container health",k)
 			if !self.manager.checkContainerInspect(k) {
 				self.manager.restartContainer(k)
+				fmt.Println("restart")
 			}			
 		}
-		self.manager.judge_mutex.RUnlock()
 		time.Sleep(10*time.Second)
 	}
 }
@@ -44,14 +44,14 @@ func (self *JudgeWorker) GetTask() {
 	for {
 		is_idle := 0
 		var idle_container_id  []string
-		self.manager.judge_mutex.RLock()
+		self.manager.judge_mutex.Lock()
 		for k,v := range self.manager.container_pool{
 			if v.is_work == false {
 				is_idle = is_idle + 1
 				idle_container_id = append(idle_container_id,k)
 			}
 		}
-		self.manager.judge_mutex.RUnlock()	
+		self.manager.judge_mutex.Unlock()	
 		//from redis get is_idle task
 		to_do := self.manager.GetRedisTask(is_idle)
 

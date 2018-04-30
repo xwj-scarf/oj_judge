@@ -19,7 +19,7 @@ import (
 type JudgeContainerManager struct{
 	manager *JudgeServer
     container_pool map[string]*ClientInfo                //container id --> client
-	judge_mutex *sync.RWMutex
+	judge_mutex *sync.Mutex
 	image_name string
 	max_docker_num int
 }
@@ -33,7 +33,7 @@ func (self *JudgeContainerManager) SetImageName(image_name string) {
 }
 
 func (self *JudgeContainerManager) Init() {
-    self.judge_mutex = new(sync.RWMutex)
+    self.judge_mutex = new(sync.Mutex)
 	self.container_pool = make(map[string]*ClientInfo)
 
     for i:=0;i<self.max_docker_num;i++ {
@@ -46,8 +46,8 @@ func (self *JudgeContainerManager) Init() {
 }
 
 func (self *JudgeContainerManager) getClientInfo(containerId string) *client.Client{
-	self.judge_mutex.RLock()
-	defer self.judge_mutex.RUnlock()
+	self.judge_mutex.Lock()
+	defer self.judge_mutex.Unlock()
 	client_info, ok := self.container_pool[containerId]
 	if !ok {
 		fmt.Println("get container client error!")
@@ -71,7 +71,6 @@ func (self *JudgeContainerManager) RunInContainer(containerId string) error{
 func (self *JudgeContainerManager) checkContainerInspect(containerId string) bool{
 	cli := self.getClientInfo(containerId)
 	ctx := context.Background()
-
 	inspect, err := cli.ContainerInspect(ctx,containerId) 
 	if err != nil {
 		fmt.Println(err)
@@ -269,6 +268,8 @@ func (self *JudgeContainerManager) ContainerExec(containerId string, user string
 		now := time.Now().Unix()
 		if now - timer > int64(self.manager.judge_time_out) {
 			fmt.Println("ContainerExec time out!")
+			self.restartContainer(containerId)
+			fmt.Println("restart docker success")
 			return errors.New("ContainerExec time out!")
 		}
 	}
