@@ -19,7 +19,7 @@ type JudgeWorker struct {
 
 func (self *JudgeWorker) Run() {
 	go self.GetTask()
-	go self.checkContainerHealth()
+	//go self.checkContainerHealth()
 	fmt.Println("run .......")
 
 	for {

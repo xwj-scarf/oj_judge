@@ -108,10 +108,12 @@ func (self *JudgeContainerManager) CreateContainer(image_name string) (string,*c
 	host_config := &container.HostConfig {
 		//单位B
 		Resources : container.Resources{
-			Memory:500000000,
+			Memory:500*1024*1024,
 			CPUCount:1,
-			MemorySwap:5000000000,         
-			MemoryReservation :500000000,
+			MemorySwap:500*1024*1024,         
+			MemoryReservation :500*1024*1024,
+			PidsLimit:30,
+			DiskQuota: 50*1024*1024,
 			//KernelMemoryLimit :500000, 
 			//MemorySwap:-1, 
 		},	

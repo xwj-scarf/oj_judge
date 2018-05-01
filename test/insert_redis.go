@@ -40,7 +40,7 @@ func main() {
 	//insert_to_redis(1)
 	
 	for {
-		for i:=0;i<5;i++ {
+		for i:=0;i<500;i++ {
 			op := i%3
 			mutex.Lock()			
 			remark[op] ++
@@ -113,7 +113,7 @@ func insert_to_redis(op int) {
         fmt.Println(err)
         return 
     }
-    res1,err := stmt1.Exec("1","1",0,0,now,now)
+    res1,err := stmt1.Exec("1","8",0,0,now,now)
     if err != nil {
         fmt.Println(err)
         return 
@@ -125,7 +125,7 @@ func insert_to_redis(op int) {
     code1 := &C{
         Code: code,         
 		Pid:     1,
-		Uid:    1,
+		Uid:    8,
 		Sid:   int(id),
     }
 
