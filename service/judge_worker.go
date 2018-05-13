@@ -120,12 +120,19 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	self.manager.ChangePermission(container_id,"/tmp/input.txt")
 
 	//complie code in container
-	err = self.manager.ComplieCodeInContainer(container_id) 
-	if err != nil {
+	is_timeout := false
+	err,is_timeout = self.manager.ComplieCodeInContainer(container_id) 
+	if err != nil && !is_timeout {
 		fmt.Println("complie code in container error!")
 		self.manager.mysql.MarkUserStatus(0,0,taskinfo.Sid,taskinfo.Cid,taskinfo.Uid,Ce)
 		return
 	 }
+
+	if is_timeout {
+		fmt.Println("complie code in container time out!")
+		self.manager.mysql.MarkUserStatus(0,0,taskinfo.Sid,taskinfo.Cid,taskinfo.Uid,Tle)
+		return
+	}
 
 	self.manager.ChangePermission(container_id,"/tmp/code")
 
@@ -144,12 +151,18 @@ func (self *JudgeWorker) Assign(taskinfo *SubmitInfo, container_id string) {
 	}
 
 	//run code in container
-	err = self.manager.RunInContainer(container_id) 
-	if err != nil {
+	err,is_timeout = self.manager.RunInContainer(container_id) 
+	if err != nil && !is_timeout {
 		fmt.Println("run code in container error!")
 		self.manager.mysql.MarkUserStatus(0,0,taskinfo.Sid,taskinfo.Cid,taskinfo.Uid,Error)
 		return
 	 }
+
+	if is_timeout {
+		fmt.Println("run code in container time out!")
+		self.manager.mysql.MarkUserStatus(0,0,taskinfo.Sid,taskinfo.Cid,taskinfo.Uid,Tle)
+		return 
+    }
 
 	//copy is_runtime_error.txt in container
 	err = self.manager.CopyFromContainer(container_id,"runtime.txt")
